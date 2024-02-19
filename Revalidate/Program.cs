@@ -14,7 +14,7 @@ builder.Services.AddSwaggerGen(options =>
     options.SwaggerDoc("v1", new OpenApiInfo
     {
         Version = "v1",
-        Title = "Replay Validation API",
+        Title = "Revalidate API",
         Contact = new OpenApiContact
         {
             Name = "BigBang1112",
