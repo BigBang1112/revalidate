@@ -1,9 +1,13 @@
 using Microsoft.OpenApi.Models;
 using MinimalHelpers.OpenApi;
+using Revalidate;
 using Revalidate.Extensions;
+using Revalidate.Filters;
 using Serilog;
 
 var builder = WebApplication.CreateSlimBuilder(args);
+
+var appVersion = typeof(Program).Assembly.GetName().Version ?? new Version(1, 0);
 
 builder.Services.AddEndpoints();
 builder.Services.AddEndpointsApiExplorer();
@@ -11,9 +15,11 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.AddFormFile();
 
+    options.DocumentFilter<ValidateFirstDocumentFilter>();
+
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Version = "v1",
+        Version = appVersion.ToString(3),
         Title = "Revalidate API",
         Contact = new OpenApiContact
         {
@@ -40,6 +46,8 @@ builder.Services.AddLogging(builder =>
     builder.AddSerilog(dispose: true);
 });
 
+builder.Services.AddSingleton(x => new RevalidateInfo(appVersion));
+
 builder.Host.UseSerilog();
 
 Log.Logger = new LoggerConfiguration()
@@ -53,7 +61,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI(options =>
     {
-        options.SwaggerEndpoint("/swagger/v1/swagger.json", $"Trackmania Replay Validation Web API v1");
+        options.SwaggerEndpoint("/swagger/v1/swagger.json", $"Trackmania Replay Validation Web API");
         options.InjectStylesheet("css/SwaggerDark.css");
     });
 }
