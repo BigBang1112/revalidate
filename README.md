@@ -16,3 +16,24 @@ REVALIDATE is a Hangfire service that handles 4 stages:
 2. Schedules validation tests on dedicated servers (and TMUF client executable) running as Docker containers
 3. Retrieves outputted validation text files, parses them, links the results with the individual replay/ghost files
 4. Send the results to the appropriate users
+
+## Web API
+
+### Endpoints
+
+#### Validation endpoints
+
+Submit the request with `POST /validate[/against]` and retrieve the results with `GET /validate[/against]`.
+
+The `POST` request also supports a long-polling option that holds the request until the validation completes, but this can take a very long time when the app instance is intensively used. Prefer using it in development or with a large enough timeout.
+
+Validation endpoints either support long-polling (make sure you have a large enough timeout), or you can view the results by using a `GET` request.
+
+- `POST /validate` - Validate a Replay.Gbx, using the map file inside the replay.
+- `POST /validate/against` - Validate a Replay.Gbx against a different map than the one stored inside the replay, or a Ghost.Gbx against a specific Map.Gbx. If a map file is not provided, the replay is validated against the map stored on the server.
+- `GET /validate[/against]` - View results of the `POST /validate[/against]` endpoint. The results will be automatically deleted 1-2 hours after completion (in scheduled batches).
+- `DELETE /validate[/against]` - Delete the validation results early.
+
+## CLI
+
+Planned in the future.
