@@ -1,8 +1,7 @@
 ﻿using Revalidate.Models;
 using System.Text.Json.Serialization;
 
-[JsonSerializable(typeof(ExeBuild[]))]
-internal partial class AppJsonSerializerContext : JsonSerializerContext
-{
+namespace Revalidate;
 
-}
+[JsonSerializable(typeof(User))]
+internal partial class AppJsonSerializerContext : JsonSerializerContext;

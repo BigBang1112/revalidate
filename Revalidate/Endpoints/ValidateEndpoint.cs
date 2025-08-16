@@ -1,32 +1,32 @@
-﻿namespace Revalidate.Endpoints;
+﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Revalidate.Endpoints.GitHub;
+using Revalidate.Models;
+using Revalidate.Services;
 
-internal sealed class ValidateEndpoint : IEndpoint
+namespace Revalidate.Endpoints;
+
+public static class ValidateEndpoint
 {
-    public void RegisterEndpoints(IEndpointRouteBuilder app)
+    public static void Map(RouteGroupBuilder group)
     {
-        var group = app.MapGroup("validate")
-            .DisableAntiforgery()
-            .WithTags("Validate")
-            .WithFormOptions(valueCountLimit: 10)
-            .WithOpenApi();
+        group.MapPost("/validate", Validate)
+            .WithName("ValidateEndpoint")
+            .WithTags("Validation");
 
-        // validate multiple replay.gbx
-        group.MapPost("", Validate)
-            .WithDescription("Validate a Replay.Gbx, using the map file inside the replay.");
+        group.MapPost("/validate/against", ValidateAgainst)
+            .WithName("ValidateAgainstEndpoint")
+            .WithTags("Validation");
 
-        // validate multiple replay.gbx/ghost.gbx against specific map.gbx 
-        // validate multiple replay.gbx/ghost.gbx against known map by the server
-        group.MapPost("against", ValidateAgainst)
-            .WithDescription("Validate a Replay.Gbx against a different map than the one stored inside the replay, or a Ghost.Gbx against a specific Map.Gbx. If a map file is not provided, the replay is validated against the map stored on the server.");
+        //GitHubUserEndpoint.Map(group.MapGroup("/user"));
     }
 
-    internal async Task Validate(IFormFileCollection files, CancellationToken cancellationToken)
+    private static async Task<Results<Accepted, BadRequest>> Validate(CancellationToken cancellationToken)
     {
-
+        throw new NotImplementedException("This method is not implemented yet.");
     }
 
-    internal async Task ValidateAgainst(IFormFileCollection files, CancellationToken cancellationToken)
+    private static async Task<Results<Accepted, BadRequest>> ValidateAgainst(CancellationToken cancellationToken)
     {
-
+        throw new NotImplementedException("This method is not implemented yet.");
     }
 }

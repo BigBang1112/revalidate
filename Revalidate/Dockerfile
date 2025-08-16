@@ -1,26 +1,38 @@
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
-ARG BUILD_CONFIGURATION=Release
-ARG TARGETARCH=x64
+# Debug phase
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS base
+USER $APP_UID
+WORKDIR /app
+EXPOSE 8080
+EXPOSE 8081
+
+
+# Publish phase
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS publish
+ARG TARGETARCH
 ARG APPNAME=Revalidate
 WORKDIR /src
 
-# copy csproj and restore as distinct layers
-COPY $APPNAME/*.csproj $APPNAME/
-COPY $APPNAME.Generators/*.csproj $APPNAME.Generators/
-RUN dotnet restore $APPNAME/$APPNAME.csproj -a $TARGETARCH
+# Copy project file and restore as distinct layers
+COPY --link $APPNAME/*.csproj $APPNAME/
+# COPY --link $APPNAME.MySubProject/*.csproj $APPNAME.MySubProject/
+RUN dotnet restore -a $TARGETARCH $APPNAME/$APPNAME.csproj
 
-# copy and publish app and libraries
-COPY $APPNAME/ $APPNAME/
-COPY $APPNAME.Generators/ $APPNAME.Generators/
+# Copy source code and publish app
+COPY --link $APPNAME/ $APPNAME/
+# COPY --link $APPNAME.MySubProject/ $APPNAME.MySubProject/
+
 WORKDIR /src/$APPNAME
-RUN dotnet publish -c $BUILD_CONFIGURATION -a $TARGETARCH -o /app --no-restore --self-contained
+RUN dotnet publish -a $TARGETARCH --no-restore -o /app
 
 
-# final stage/image
-FROM mcr.microsoft.com/dotnet/runtime-deps:8.0-alpine
+# Final phase
+FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine
 EXPOSE 8080
 EXPOSE 8081
+
+# RUN apk add --no-cache tzdata
+
 WORKDIR /app
-COPY --from=build /app .
+COPY --link --from=publish /app .
 USER $APP_UID
-ENTRYPOINT ["./ReplayValidationAPI"]
+ENTRYPOINT ["./Revalidate"]

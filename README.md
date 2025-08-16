@@ -2,7 +2,7 @@
 
 REVALIDATE is a unified way to validate Trackmania replays and ghosts outside of the game.
 
-Since 2003, Trackmania has had an ingame replay validation feature. This feature is not implemented in Trackmania (2020) leaderboards, which sometimes causes record pollution of invalid records that nobody ever cleans. In Trackmania 2, this only applies to Top 10 records of official campaigns, and in Trackmania United Forever, it does not exist at all.
+Since 2003, Trackmania has had an ingame replay validation feature. This feature was not properly implemented in Trackmania (2020) leaderboards until 2024, which sometimes causes record pollution of invalid records that nobody ever cleans. In Trackmania 2, this only applies to Top 10 records of official campaigns, and in Trackmania United Forever, it does not exist at all.
 
 However, all of these games have some form of replay validation available:
 

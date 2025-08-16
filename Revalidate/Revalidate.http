@@ -1,11 +1,6 @@
-@Revalidate_HostAddress = http://localhost:5082
+@WebApi_HostAddress = http://localhost:5118
 
-GET {{Revalidate_HostAddress}}/todos/
-Accept: application/json
-
-###
-
-GET {{Revalidate_HostAddress}}/todos/1
+GET {{WebApi_HostAddress}}/github/user/bigbang1112
 Accept: application/json
 
 ###

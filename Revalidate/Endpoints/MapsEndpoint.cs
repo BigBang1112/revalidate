@@ -1,28 +1,26 @@
-﻿namespace Revalidate.Endpoints;
+﻿using System.ComponentModel.DataAnnotations;
 
-internal sealed class MapsEndpoint : IEndpoint
+namespace Revalidate.Endpoints;
+
+public static class MapsEndpoint
 {
-    public void RegisterEndpoints(IEndpointRouteBuilder app)
+    public static void Map(RouteGroupBuilder group)
     {
-        var group = app.MapGroup("maps")
+        group.MapGet("/maps", GetMaps)
             .WithTags("Maps")
-            .WithOpenApi();
-
-        // get map list
-        group.MapGet("", GetMapList)
             .WithDescription("Get a list of available maps.");
 
-        // get map info
-        group.MapGet("{mapUid}", GetMapInfo)
+        group.MapGet("/maps/{mapUid}", GetMapByUid)
+            .WithTags("Maps")
             .WithDescription("Get information about a map.");
     }
 
-    private Task GetMapList(CancellationToken cancellationToken)
+    private static Task GetMaps(CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
 
-    private Task GetMapInfo(string mapUid, CancellationToken cancellationToken)
+    private static Task GetMapByUid(string mapUid, CancellationToken cancellationToken)
     {
         throw new NotImplementedException();
     }
