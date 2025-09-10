@@ -40,7 +40,7 @@ For validation request:
     2. Check for file above 8MB (default) - if true, append validation warning and skip the file
     3. Parse file as Gbx - expected Replay.Gbx, Ghost.Gbx, or Map.Gbx without GBX.NET errors, otherwise append validation warning and skip the file
     4. Generate SHA256 of the file and discard duplicates - append validation warning and skip the file
-    5. Store all validation info and useful map info + unmodified binary of the file
+    5. Store/memorize all validation info and useful map info + unmodified binary of the file
         - For Replay.Gbx: if multiple are present, then pick the first one (multi-ghost replays are likely not validable), always store to database
         - For Ghost.Gbx: store temporarily (wait until all maps are gathered)
         - For Map.Gbx: store temporarily (wait until all replays and ghosts are gathered)
@@ -65,19 +65,23 @@ For validation job (running in the background):
 1. Check for incomplete validation requests from database, rerun them first
 2. Receive new validation requests in a loop using channel readers
 3. For each validation request:
-  1. Copy unmodified replay/ghost/map binaries to their appropriate UserData volumes
-    - For TM2/020:
-      - Replay.Gbx and Ghost.Gbx to Replays/.
-      - Map.Gbx to Maps/.
-    - For TMUF:
-      - Replay.Gbx and Ghost.Gbx to Tracks/Replays/.
-      - Challenge.Gbx to Tracks/.
-  2. Run ManiaServerManager container with `MSM_VALIDATE_PATH=.` and read stdout/stderr separately in real time
-  3. For each new JSON object, write the result in a subchannel and store it in a database
-  4. After container exits, store the ValidationLog.txt file in a database
-  5. Save the transaction of the validation result to the database
-    - Validation result (progress) becomes Validation result (completed)
-  6. Cleanup ManiaServerManager
+    1. Copy unmodified replay/ghost/map binaries to their appropriate UserData volumes
+        - For TM2/020:
+            - Replay.Gbx and Ghost.Gbx to Replays/.
+            - Map.Gbx to Maps/.
+        - For TMUF:
+            - Replay.Gbx and Ghost.Gbx to Tracks/Replays/.
+            - Challenge.Gbx to Tracks/.
+    2. Execute replay validation:
+        - For TM2/020:
+            1. Run ManiaServerManager container with `MSM_VALIDATE_PATH=.` and read stdout/stderr separately in real time
+            2. For each new JSON object, write the result in a subchannel and store it in a database
+        - For TMUF:
+            1. Run TMForeverNoGUI container with `/validatepath=.` (TMForeverNoGUI project is not publically available)
+    3. After container exits, store the ValidationLog.txt file in a database
+    4. Save the transaction of the validation result to the database
+        - Validation result (progress) becomes Validation result (completed)
+    5. Cleanup ManiaServerManager/TMForeverNoGUI
 
 Validation events are also reflected on the `/validations/{id}/events` endpoint via server-sent events using channel readers.
 
