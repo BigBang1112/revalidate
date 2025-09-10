@@ -36,26 +36,26 @@ For validation request:
 3. Check for >10 files (default) - if true, validation request failed
 4. Create a validation request model planned to be stored in the database
 5. For each file:
-  1. Check for empty file - if true, append validation warning and skip the file
-  2. Check for file above 8MB (default) - if true, append validation warning and skip the file
-  3. Parse file as Gbx - expected Replay.Gbx, Ghost.Gbx, or Map.Gbx without GBX.NET errors, otherwise append validation warning and skip the file
-  4. Generate SHA256 of the file and discard duplicates - append validation warning and skip the file
-  5. Store all validation info and useful map info + unmodified binary of the file
-    - For Replay.Gbx: if multiple are present, then pick the first one (multi-ghost replays are likely not validable), always store to database
-    - For Ghost.Gbx: store temporarily (wait until all maps are gathered)
-    - For Map.Gbx: store temporarily (wait until all replays and ghosts are gathered)
+    1. Check for empty file - if true, append validation warning and skip the file
+    2. Check for file above 8MB (default) - if true, append validation warning and skip the file
+    3. Parse file as Gbx - expected Replay.Gbx, Ghost.Gbx, or Map.Gbx without GBX.NET errors, otherwise append validation warning and skip the file
+    4. Generate SHA256 of the file and discard duplicates - append validation warning and skip the file
+    5. Store all validation info and useful map info + unmodified binary of the file
+        - For Replay.Gbx: if multiple are present, then pick the first one (multi-ghost replays are likely not validable), always store to database
+        - For Ghost.Gbx: store temporarily (wait until all maps are gathered)
+        - For Map.Gbx: store temporarily (wait until all replays and ghosts are gathered)
 6. After all files are gathered, for each *valid* Gbx:
-  1. Finalize the validation request:
-    - If Replay.Gbx: check if the map with matching `Validate_ChallengeUid` is provided by Revalidate or from imported Map.Gbx:
-      - If yes: extract Ghost.Gbx into its own binary file create a separate validation (can be prone to GBX.NET errors, so it's additional)
-      - If not: ghost extraction is skipped
-    - If Ghost.Gbx: check if the map with matching `Validate_ChallengeUid` is provided by Revalidate or from imported Map.Gbx:
-      - If yes: store the ghost to database (info + unmodified binary)
-      - If not: append validation warning (missing map to validate against)
-    - If Map.Gbx: check if there's already a ghost or a replay that matches the map's `MapUid`
-      - If yes: store useful map details for quick access + full unmodified binary of the file to the database
-      - If not: append validation warning (map is not useful for validation)
-7. If out of all uploads, there is *not* a single ghost with a map alongside it (also meant as Replay.Gbx), validation request failed
+    1. Finalize the validation request:
+        - If Replay.Gbx: check if the map with matching `Validate_ChallengeUid` is provided by Revalidate or from imported Map.Gbx:
+            - If yes: extract Ghost.Gbx into its own binary file create a separate validation (can be prone to GBX.NET errors, so it's additional)
+            - If not: ghost extraction is skipped
+        - If Ghost.Gbx: check if the map with matching `Validate_ChallengeUid` is provided by Revalidate or from imported Map.Gbx:
+            - If yes: store the ghost to database (info + unmodified binary)
+            - If not: append validation warning (missing map to validate against)
+        - If Map.Gbx: check if there's already a ghost or a replay that matches the map's `MapUid`
+            - If yes: store useful map details for quick access + full unmodified binary of the file to the database
+            - If not: append validation warning (map is not useful for validation)
+7. If out of all uploads, there is *not* a single ghost with a map alongside it (also meant as Replay.Gbx), validation request failed (by using validation warnings as details)
 8. Save the transaction of the validation request to the database
 9. Notify validation job about the request that was considered usable for validation using a channel writer
 10. **Output**: Validation result (progress)
