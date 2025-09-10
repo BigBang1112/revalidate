@@ -6,6 +6,6 @@ public static class DomainConfiguration
 {
     public static void AddDomainServices(this IServiceCollection services)
     {
-        // .. your domain services here ...
+        services.AddScoped<IValidationService, ValidationService>();
     }
 }

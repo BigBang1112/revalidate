@@ -14,6 +14,6 @@ public static class EndpointConfiguration
             });
         });
 
-        ValidateEndpoint.Map(app.MapGroup("/validate"));
+        ValidationEndpoints.Map(app.MapGroup("/validations"));
     }
 }

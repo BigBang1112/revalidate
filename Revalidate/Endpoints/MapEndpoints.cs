@@ -1,8 +1,6 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿namespace Revalidate.Endpoints;
 
-namespace Revalidate.Endpoints;
-
-public static class MapsEndpoint
+public static class MapEndpoints
 {
     public static void Map(RouteGroupBuilder group)
     {

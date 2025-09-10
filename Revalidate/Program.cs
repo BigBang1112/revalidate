@@ -1,4 +1,8 @@
+using GBX.NET;
+using GBX.NET.LZO;
 using Revalidate.Configuration;
+
+Gbx.LZO = new Lzo();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,5 +23,3 @@ var app = builder.Build();
 app.UseMiddleware();
 
 app.Run();
-
-public partial class Program;

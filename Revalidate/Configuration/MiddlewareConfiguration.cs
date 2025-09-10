@@ -26,15 +26,11 @@ public static class MiddlewareConfiguration
             ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
         }).RequireAuthorization();
 
-        if (app.Environment.IsDevelopment())
+        app.MapOpenApi();
+        app.MapScalarApiReference(options =>
         {
-            app.MapOpenApi();
-            app.MapScalarApiReference(options =>
-            {
-                options.DefaultHttpClient = new(ScalarTarget.CSharp, ScalarClient.HttpClient);
-                options.Theme = ScalarTheme.DeepSpace;
-            });
-        }
+            options.Theme = ScalarTheme.DeepSpace;
+        });
 
         app.MapEndpoints();
     }
