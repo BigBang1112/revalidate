@@ -1,4 +1,5 @@
 ﻿using Revalidate.Endpoints;
+using Revalidate.Models;
 
 namespace Revalidate.Configuration;
 
@@ -6,14 +7,14 @@ public static class EndpointConfiguration
 {
     public static void MapEndpoints(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/", async (context) =>
-        {
-            await context.Response.WriteAsJsonAsync(new
-            {
-                message = "Welcome to Revalidate!"
-            });
-        });
+        app.MapGet("/", GetRevalidateInformation)
+            .WithTags("Revalidate");
 
         ValidationEndpoints.Map(app.MapGroup("/validations"));
+        ResultEndpoints.Map(app.MapGroup("/results"));
     }
+
+    private static readonly RevalidateInformation Info = new();
+
+    private static RevalidateInformation GetRevalidateInformation() => Info;
 }

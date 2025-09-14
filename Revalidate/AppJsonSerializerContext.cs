@@ -1,7 +1,7 @@
-﻿using Revalidate.Models;
+﻿using Revalidate.Api;
 using System.Text.Json.Serialization;
 
 namespace Revalidate;
 
-[JsonSerializable(typeof(User))]
+[JsonSerializable(typeof(ValidationRequest))]
 internal partial class AppJsonSerializerContext : JsonSerializerContext;

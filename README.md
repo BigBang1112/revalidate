@@ -38,8 +38,8 @@ For validation request:
 5. For each file:
     1. Check for empty file - if true, append validation warning and skip the file
     2. Check for file above 8MB (default) - if true, append validation warning and skip the file
-    3. Parse file as Gbx - expected Replay.Gbx, Ghost.Gbx, or Map.Gbx without GBX.NET errors, otherwise append validation warning and skip the file
-    4. Generate SHA256 of the file and discard duplicates - append validation warning and skip the file
+    3. Generate SHA256 of the file and discard duplicates - append validation warning and skip the file
+    4. Parse file as Gbx - expected Replay.Gbx, Ghost.Gbx, or Map.Gbx without GBX.NET errors, otherwise append validation warning and skip the file
     5. Store/memorize all validation info and useful map info + unmodified binary of the file
         - For Replay.Gbx: if multiple are present, then pick the first one (multi-ghost replays are likely not validable), always store to database
         - For Ghost.Gbx: store temporarily (wait until all maps are gathered)

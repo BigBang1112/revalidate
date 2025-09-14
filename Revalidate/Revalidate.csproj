@@ -7,13 +7,28 @@
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     </PropertyGroup>
 
+    <PropertyGroup Label="Configure GitInfo">
+        <!-- optional, default value: $([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), '.gitignore')) -->
+        <GitInfo_RootDirectory>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), 'Revalidate.slnx'))\.git</GitInfo_RootDirectory>
+
+        <GitInfo_Namespace>Revalidate</GitInfo_Namespace>
+
+        <GitInfo_CommitAbbreviatedLength>7</GitInfo_CommitAbbreviatedLength>
+
+        <GitInfo_UseAggressiveCache>true</GitInfo_UseAggressiveCache>
+    </PropertyGroup>
+
     <ItemGroup>
-        <PackageReference Include="GBX.NET" Version="2.2.1" />
+        <PackageReference Include="GBX.NET" Version="2.2.2" />
         <PackageReference Include="GBX.NET.LZO" Version="2.1.2" />
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.7" />
+        <PackageReference Include="GitReader.SourceGenerator" Version="0.2.1" OutputItemType="Analyzer" ReferenceOutputAssembly="false">
+          <PrivateAssets>all</PrivateAssets>
+          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
         <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
-        <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.7.0" />
-        <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.7.0" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.9.0" />
+        <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.9.0" />
         <PackageReference Include="OneOf" Version="3.0.271" />
         <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
         <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
@@ -26,8 +41,15 @@
         <PackageReference Include="OpenTelemetry.Instrumentation.Process" Version="1.12.0-beta.1" />
         <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
         <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
-        <PackageReference Include="Scalar.AspNetCore" Version="2.6.4" />
+        <PackageReference Include="Scalar.AspNetCore" Version="2.8.3" />
         <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
+        <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.9">
+            <PrivateAssets>all</PrivateAssets>
+            <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+        </PackageReference>
     </ItemGroup>
 
     <ItemGroup>
@@ -35,7 +57,11 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Data\" />
+      <Folder Include="Migrations\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Revalidate.Api\Revalidate.Api.csproj" />
     </ItemGroup>
 
 </Project>

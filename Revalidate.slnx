@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="Revalidate.Api/Revalidate.Api.csproj" Id="79513ff7-6ec5-4301-aaf1-70495e3a0c27" />
   <Project Path="Revalidate/Revalidate.csproj" />
 </Solution>
