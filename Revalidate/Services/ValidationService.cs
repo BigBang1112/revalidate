@@ -27,6 +27,7 @@ public interface IValidationService
     Task<bool> DeleteResultAsync(Guid id, CancellationToken cancellationToken);
     Task<DownloadContent?> GetResultReplayDownloadAsync(Guid id, CancellationToken cancellationToken);
     Task<DownloadContent?> GetResultGhostDownloadAsync(Guid id, CancellationToken cancellationToken);
+    Task<IEnumerable<GhostInput>> GetResultGhostInputDtosByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<IEnumerable<ValidationResultEntity>> GetAllIncompleteResultsAsync(CancellationToken stoppingToken);
     Task StartProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken);
     Task FinishProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken);
@@ -374,6 +375,24 @@ public sealed class ValidationService : IValidationService
                 Etag = x.Ghost.Etag
             })
             .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task<IEnumerable<GhostInput>> GetResultGhostInputDtosByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return await db.GhostInputs
+            .Where(input => input.ValidationResultId == id)
+            .OrderBy(input => input.Id)
+            .Select(input => new GhostInput
+            {
+                Time = input.Time,
+                Name = input.Name,
+                Value = input.Value,
+                Pressed = input.Pressed,
+                X = input.X,
+                Y = input.Y,
+                ValueF = input.ValueF
+            })
+            .ToListAsync(cancellationToken);
     }
 
     public async Task StartProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken)

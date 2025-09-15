@@ -12,6 +12,7 @@ public static class ResultEndpoints
         public const string GetAll = "Result_GetAll";
         public const string GetById = "Result_GetById";
         public const string GetEventsById = "Result_GetEventsById";
+        public const string GetInputsById = "Result_GetInputsById";
         public const string Delete = "Result_Delete";
         public const string DownloadReplayById = "Result_DownloadReplayById";
         public const string DownloadGhostById = "Result_DownloadGhostById";
@@ -35,6 +36,11 @@ public static class ResultEndpoints
             .WithName(RouteNames.GetEventsById)
             .WithSummary("Validation result events (by ID)")
             .WithDescription("Returns events for a validation result by ID.");
+
+        group.MapGet("/{id:guid}/inputs", GetInputsById)
+            .WithName(RouteNames.GetInputsById)
+            .WithSummary("Validation ghost inputs (by ID)")
+            .WithDescription("Returns inputs for a validation ghost by ID.");
 
         group.MapDelete("/{id:guid}", Delete)
             .WithName(RouteNames.Delete)
@@ -80,6 +86,16 @@ public static class ResultEndpoints
     {
         throw new NotImplementedException();
         //return TypedResults.ServerSentEvents
+    }
+
+    private static async Task<Ok<IEnumerable<GhostInput>>> GetInputsById(
+        Guid id,
+        IValidationService validationService,
+        CancellationToken cancellationToken)
+    {
+        var inputs = await validationService.GetResultGhostInputDtosByIdAsync(id, cancellationToken);
+
+        return TypedResults.Ok(inputs);
     }
 
     private static async Task<Results<NoContent, NotFound>> Delete(

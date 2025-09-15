@@ -8,6 +8,7 @@ public sealed class GhostInputEntity
     public int Id { get; set; }
 
     public required ValidationResultEntity ValidationResult { get; set; }
+    public Guid ValidationResultId { get; set; }
 
     public required TimeInt32 Time { get; set; }
 
