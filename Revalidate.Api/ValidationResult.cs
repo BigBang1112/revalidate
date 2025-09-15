@@ -1,4 +1,5 @@
 ﻿using System.Collections.Immutable;
+using System.ComponentModel.DataAnnotations;
 using TmEssentials;
 
 namespace Revalidate.Api;
@@ -8,7 +9,9 @@ public sealed class ValidationResult
     public required Guid Id { get; init; }
     public required string? Sha256 { get; init; }
     //public required int Crc32 { get; init; }
-    public string? FileName { get; init; }
+    public required string? FileName { get; init; }
+    public required ValidationStatus Status { get; set; }
+    public required GameVersion GameVersion { get; init; }
     public required Guid? ReplayId { get; init; }
     public required Guid? GhostId { get; init; }
     public required bool IsGhostExtracted { get; init; }
@@ -28,5 +31,13 @@ public sealed class ValidationResult
     public required bool SteeringWheelSensitivity { get; init; }
     public required string? TitleId { get; init; }
     public required string? TitleChecksum { get; init; }
-    public required ImmutableList<GhostCheckpoint> Checkpoints { get; set; }
+    public required string? Login { get; init; }
+    public required string? MapUid { get; init; }
+    public required bool? IsValid { get; init; }
+    public required ValidationRaceResult DeclaredResult { get; init; }
+    public required ValidationRaceResult? ValidatedResult { get; init; }
+    public required Guid? AccountId { get; init; }
+    public required string? InputsResult { get; init; }
+    public required int NbInputs { get; init; }
+    public required ImmutableList<GhostCheckpoint> Checkpoints { get; init; }
 }

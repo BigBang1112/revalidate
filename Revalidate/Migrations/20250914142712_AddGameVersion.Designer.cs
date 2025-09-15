@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Revalidate;
 
@@ -11,9 +12,11 @@ using Revalidate;
 namespace Revalidate.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250914142712_AddGameVersion")]
+    partial class AddGameVersion
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -139,25 +142,10 @@ namespace Revalidate.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<Guid?>("AccountId")
-                        .HasColumnType("char(36)");
-
                     b.Property<DateTimeOffset?>("CompletedAt")
                         .HasColumnType("datetime(6)");
 
                     b.Property<int>("CpuKind")
-                        .HasColumnType("int");
-
-                    b.Property<int>("DeclaredNbCheckpoints")
-                        .HasColumnType("int");
-
-                    b.Property<int>("DeclaredNbRespawns")
-                        .HasColumnType("int");
-
-                    b.Property<int>("DeclaredScore")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("DeclaredTime")
                         .HasColumnType("int");
 
                     b.Property<int>("EventsDuration")
@@ -183,26 +171,11 @@ namespace Revalidate.Migrations
                     b.Property<string>("GhostUid")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("InputsResult")
-                        .HasMaxLength(1024)
-                        .HasColumnType("varchar(1024)");
-
                     b.Property<bool>("IsGhostExtracted")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<bool?>("IsValid")
                         .HasColumnType("tinyint(1)");
-
-                    b.Property<string>("Login")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("MapUid")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<int>("NbInputs")
-                        .HasColumnType("int");
 
                     b.Property<int>("OsKind")
                         .HasColumnType("int");
@@ -217,10 +190,6 @@ namespace Revalidate.Migrations
 
                     b.Property<int?>("RaceTime")
                         .HasColumnType("int");
-
-                    b.Property<string>("RawJsonResult")
-                        .HasMaxLength(32767)
-                        .HasColumnType("longtext");
 
                     b.Property<Guid?>("ReplayId")
                         .HasColumnType("char(36)");
@@ -244,18 +213,6 @@ namespace Revalidate.Migrations
                     b.Property<string>("TitleId")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
-
-                    b.Property<int?>("ValidatedNbCheckpoints")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ValidatedNbRespawns")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ValidatedScore")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("ValidatedTime")
-                        .HasColumnType("int");
 
                     b.Property<int?>("ValidationSeed")
                         .HasColumnType("int");

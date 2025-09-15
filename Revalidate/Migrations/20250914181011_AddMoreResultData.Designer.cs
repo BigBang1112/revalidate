@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Revalidate;
 
@@ -11,9 +12,11 @@ using Revalidate;
 namespace Revalidate.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250914181011_AddMoreResultData")]
+    partial class AddMoreResultData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -201,9 +204,6 @@ namespace Revalidate.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<int>("NbInputs")
-                        .HasColumnType("int");
-
                     b.Property<int>("OsKind")
                         .HasColumnType("int");
 
@@ -217,10 +217,6 @@ namespace Revalidate.Migrations
 
                     b.Property<int?>("RaceTime")
                         .HasColumnType("int");
-
-                    b.Property<string>("RawJsonResult")
-                        .HasMaxLength(32767)
-                        .HasColumnType("longtext");
 
                     b.Property<Guid?>("ReplayId")
                         .HasColumnType("char(36)");
@@ -245,13 +241,13 @@ namespace Revalidate.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<int?>("ValidatedNbCheckpoints")
+                    b.Property<int>("ValidatedNbCheckpoints")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ValidatedNbRespawns")
+                    b.Property<int>("ValidatedNbRespawns")
                         .HasColumnType("int");
 
-                    b.Property<int?>("ValidatedScore")
+                    b.Property<int>("ValidatedScore")
                         .HasColumnType("int");
 
                     b.Property<int?>("ValidatedTime")

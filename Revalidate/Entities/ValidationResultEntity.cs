@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Revalidate.Enums;
+using Revalidate.Api;
+using Revalidate.Models;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using TmEssentials;
@@ -18,6 +19,10 @@ public sealed class ValidationResultEntity
 
     [StringLength(byte.MaxValue)]
     public string? FileName { get; set; }
+
+    public ValidationStatus Status { get; set; }
+
+    public required GameVersion GameVersion { get; set; }
 
     public required FileEntity? Replay { get; set; }
 
@@ -61,9 +66,33 @@ public sealed class ValidationResultEntity
     [Column(TypeName = "BINARY(32)")]
     public required byte[]? TitleChecksum { get; set; }
 
-    public ValidationStatus Status { get; set; }
+    public required int NbInputs { get; set; }
+
+    [StringLength(byte.MaxValue)]
+    public required string? Login { get; set; }
+
+    [StringLength(byte.MaxValue)]
+    public required string? MapUid { get; set; }
 
     public bool? IsValid { get; set; }
+
+    public int DeclaredNbCheckpoints { get; set; }
+    public int DeclaredNbRespawns { get; set; }
+    public TimeInt32? DeclaredTime { get; set; }
+    public int DeclaredScore { get; set; }
+
+    public int? ValidatedNbCheckpoints { get; set; }
+    public int? ValidatedNbRespawns { get; set; }
+    public TimeInt32? ValidatedTime { get; set; }
+    public int? ValidatedScore { get; set; }
+
+    public Guid? AccountId { get; set; }
+
+    [StringLength(1024)]
+    public string? InputsResult { get; set; }
+
+    [StringLength(short.MaxValue)]
+    public string? RawJsonResult { get; set; }
 
     public Dictionary<string, string[]> Problems { get; set; } = [];
 

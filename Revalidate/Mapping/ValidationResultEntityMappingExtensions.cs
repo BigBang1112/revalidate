@@ -12,6 +12,8 @@ public static class ValidationResultEntityMappingExtensions
         Sha256 = Convert.ToHexStringLower(result.Sha256),
         //Crc32 = result.Crc32,
         FileName = result.FileName,
+        Status = result.Status,
+        GameVersion = result.GameVersion,
         ReplayId = result.Replay?.Id,
         GhostId = result.Ghost?.Id,
         IsGhostExtracted = result.IsGhostExtracted,
@@ -31,6 +33,28 @@ public static class ValidationResultEntityMappingExtensions
         SteeringWheelSensitivity = result.SteeringWheelSensitivity,
         TitleId = result.TitleId,
         TitleChecksum = result.TitleChecksum is null ? null : Convert.ToHexStringLower(result.TitleChecksum),
+        Login = result.Login,
+        MapUid = result.MapUid,
+        IsValid = result.IsValid,
+        DeclaredResult = new ValidationRaceResult
+        {
+            NbCheckpoints = result.DeclaredNbCheckpoints,
+            NbRespawns = result.DeclaredNbRespawns,
+            Time = result.DeclaredTime,
+            Score = result.DeclaredScore,
+        },
+        ValidatedResult = result.ValidatedNbRespawns is null || result.ValidatedNbCheckpoints is null || result.ValidatedScore is null
+            ? null
+            : new ValidationRaceResult
+            {
+                NbCheckpoints = result.ValidatedNbCheckpoints.Value,
+                NbRespawns = result.ValidatedNbRespawns.Value,
+                Time = result.ValidatedTime,
+                Score = result.ValidatedScore.Value,
+            },
+        AccountId = result.AccountId,
+        InputsResult = result.InputsResult,
+        NbInputs = result.NbInputs,
         Checkpoints = result.Checkpoints.Select(x => x.ToDto()).ToImmutableList(),
     };
 }

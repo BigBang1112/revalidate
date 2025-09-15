@@ -1,4 +1,4 @@
-﻿namespace Revalidate.Enums;
+﻿namespace Revalidate.Api;
 
 public enum ValidationStatus
 {

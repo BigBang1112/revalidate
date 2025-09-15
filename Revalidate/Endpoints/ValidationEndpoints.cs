@@ -76,7 +76,7 @@ public static class ValidationEndpoints
         IValidationService validationService,
         CancellationToken cancellationToken)
     {
-        var request = await validationService.GetValidationRequestDtoByIdAsync(id, cancellationToken);
+        var request = await validationService.GetRequestDtoByIdAsync(id, cancellationToken);
 
         return request is null
             ? TypedResults.NotFound()
@@ -97,7 +97,7 @@ public static class ValidationEndpoints
         IValidationService validationService,
         CancellationToken cancellationToken)
     {
-        var removed = await validationService.DeleteValidationRequestAsync(id, cancellationToken);
+        var removed = await validationService.DeleteRequestAsync(id, cancellationToken);
         return removed
             ? TypedResults.NoContent()
             : TypedResults.NotFound();

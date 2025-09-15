@@ -57,7 +57,7 @@ public static class ResultEndpoints
         IValidationService validationService,
         CancellationToken cancellationToken)
     {
-        var results = await validationService.GetAllValidationResultDtosAsync(cancellationToken);
+        var results = await validationService.GetAllResultDtosAsync(cancellationToken);
         return TypedResults.Ok(results);
     }
 
@@ -66,7 +66,7 @@ public static class ResultEndpoints
         IValidationService validationService,
         CancellationToken cancellationToken)
     {
-        var request = await validationService.GetValidationResultDtoByIdAsync(id, cancellationToken);
+        var request = await validationService.GetResultDtoByIdAsync(id, cancellationToken);
 
         return request is null
             ? TypedResults.NotFound()
@@ -87,7 +87,7 @@ public static class ResultEndpoints
         IValidationService validationService,
         CancellationToken cancellationToken)
     {
-        var removed = await validationService.DeleteValidationResultAsync(id, cancellationToken);
+        var removed = await validationService.DeleteResultAsync(id, cancellationToken);
         return removed
             ? TypedResults.NoContent()
             : TypedResults.NotFound();
