@@ -48,9 +48,9 @@ public sealed class ValidationJobProcessor : BackgroundService
 
             var results = await validationService.GetAllIncompleteResultsAsync(stoppingToken);
 
-            foreach (var groupedResults in results.GroupBy(x => x.GameVersion))
+            foreach (var groupedResults in results.GroupBy(x => (x.GameVersion, x.TitleId)))
             {
-                await ValidateAsync(groupedResults.Key, groupedResults, scope.ServiceProvider, stoppingToken);
+                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.TitleId, groupedResults, scope.ServiceProvider, stoppingToken);
             }
         }
 
@@ -67,20 +67,20 @@ public sealed class ValidationJobProcessor : BackgroundService
                 continue;
             }
 
-            foreach (var groupedResults in validationRequest.Results.Where(x => x.Status == ValidationStatus.Pending).GroupBy(x => x.GameVersion))
+            foreach (var groupedResults in validationRequest.Results.Where(x => x.Status == ValidationStatus.Pending).GroupBy(x => (x.GameVersion, x.TitleId)))
             {
-                if (groupedResults.Key == GameVersion.None)
+                if (groupedResults.Key.GameVersion == GameVersion.None)
                 {
                     logger.LogWarning("Skipping some validation results because GameVersion is None!");
                     return;
                 }
 
-                await ValidateAsync(groupedResults.Key, groupedResults, scope.ServiceProvider, stoppingToken);
+                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.TitleId, groupedResults, scope.ServiceProvider, stoppingToken);
             }
         }
     }
 
-    private async Task ValidateAsync(GameVersion gameVersion, IEnumerable<ValidationResultEntity> results, IServiceProvider provider, CancellationToken cancellationToken)
+    private async Task ValidateAsync(GameVersion gameVersion, string? titleId, IEnumerable<ValidationResultEntity> results, IServiceProvider provider, CancellationToken cancellationToken)
     {
         var serverType = gameVersion switch
         {
@@ -103,6 +103,12 @@ public sealed class ValidationJobProcessor : BackgroundService
                 var replayFilePath = Path.Combine(replaysPath, $"{result.Id}.Replay.Gbx");
                 await File.WriteAllBytesAsync(replayFilePath, result.Replay.Data, cancellationToken);
             }
+
+            if (result.Ghost is not null)
+            {
+                var ghostFilePath = Path.Combine(replaysPath, $"{result.Id}.Ghost.Gbx");
+                await File.WriteAllBytesAsync(ghostFilePath, result.Ghost.Data, cancellationToken);
+            }
         }
 
         var titles = string.Join(',', results.Select(x => x.TitleId).Distinct());
@@ -114,6 +120,7 @@ public sealed class ValidationJobProcessor : BackgroundService
             "-e", $"MSM_SERVER_TYPE={serverType}",
             "-e", "MSM_VALIDATE_PATH=.",
             "-e", "MSM_ONLY_STDOUT=True",
+            "-e", $"MSM_TITLE={titleId}",
             "-e", $"MSM_PREPARE_TITLES={titles}",
             "-v", $"\"{archivesTempDir}:/app/data/archives\"",
             "-v", $"\"{serversTempDir}:/app/data/servers\"",
