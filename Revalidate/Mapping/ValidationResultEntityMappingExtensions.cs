@@ -35,26 +35,38 @@ public static class ValidationResultEntityMappingExtensions
         TitleChecksum = result.TitleChecksum is null ? null : Convert.ToHexStringLower(result.TitleChecksum),
         Login = result.Login,
         MapUid = result.MapUid,
-        IsValid = result.IsValid,
-        DeclaredResult = new ValidationRaceResult
-        {
-            NbCheckpoints = result.DeclaredNbCheckpoints,
-            NbRespawns = result.DeclaredNbRespawns,
-            Time = result.DeclaredTime,
-            Score = result.DeclaredScore,
-        },
-        ValidatedResult = result.ValidatedNbRespawns is null || result.ValidatedNbCheckpoints is null || result.ValidatedScore is null
-            ? null
-            : new ValidationRaceResult
-            {
-                NbCheckpoints = result.ValidatedNbCheckpoints.Value,
-                NbRespawns = result.ValidatedNbRespawns.Value,
-                Time = result.ValidatedTime,
-                Score = result.ValidatedScore.Value,
-            },
-        AccountId = result.AccountId,
-        InputsResult = result.InputsResult,
         NbInputs = result.NbInputs,
+        IsValid = result.IsValid,
+        IsValidExtracted = result.IsValidExtracted,
+        Distros = result.Distros.Select(distro => new ValidationDistroResult
+        {
+            Id = distro.Id,
+            DistroId = distro.DistroId,
+            Status = distro.Status,
+            IsValid = distro.IsValid,
+            IsValidExtracted = distro.IsValidExtracted,
+            DeclaredResult = distro.DeclaredNbCheckpoints == null || distro.DeclaredScore == null
+                ? null
+                : new ValidationRaceResult
+                {
+                    NbCheckpoints = distro.DeclaredNbCheckpoints.Value,
+                    NbRespawns = distro.DeclaredNbRespawns,
+                    Time = distro.DeclaredTime,
+                    Score = distro.DeclaredScore.Value,
+                },
+            ValidatedResult = distro.ValidatedNbRespawns == null || distro.ValidatedNbCheckpoints == null || distro.ValidatedScore == null
+                ? null
+                : new ValidationRaceResult
+                {
+                    NbCheckpoints = distro.ValidatedNbCheckpoints.Value,
+                    NbRespawns = distro.ValidatedNbRespawns,
+                    Time = distro.ValidatedTime,
+                    Score = distro.ValidatedScore.Value,
+                },
+            AccountId = distro.AccountId,
+            InputsResult = distro.InputsResult,
+            Desc = distro.Desc,
+        }).ToImmutableList(),
         Checkpoints = result.Checkpoints.Select(x => x.ToDto()).ToImmutableList(),
     };
 }

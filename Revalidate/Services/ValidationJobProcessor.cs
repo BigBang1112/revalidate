@@ -1,5 +1,4 @@
-﻿using CliWrap;
-using Revalidate.Api;
+﻿using Revalidate.Api;
 using Revalidate.Entities;
 using System.Diagnostics;
 using System.Text.Json;
@@ -17,6 +16,10 @@ public sealed class ValidationJobProcessor : BackgroundService
 
     private readonly string archivesTempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
     private readonly string serversTempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+
+    private static readonly string[] distros = ["noble", "plucky", "bookworm-slim", "alpine", "fedora"];
+
+    private static readonly SemaphoreSlim dbSemaphore = new(1, 1);
 
     public ValidationJobProcessor(IServiceScopeFactory scopeFactory, ILogger<ValidationJobProcessor> logger)
     {
@@ -38,9 +41,7 @@ public sealed class ValidationJobProcessor : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        await Cli.Wrap("docker")
-            .WithArguments(["pull", "bigbang1112/mania-server-manager"])
-            .ExecuteAsync(stoppingToken);
+        await PullLatestManiaServerManagerImagesAsync(stoppingToken);
 
         await using (var scope = scopeFactory.CreateAsyncScope())
         {
@@ -50,7 +51,7 @@ public sealed class ValidationJobProcessor : BackgroundService
 
             foreach (var groupedResults in results.GroupBy(x => (x.GameVersion, x.TitleId)))
             {
-                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.TitleId, groupedResults, scope.ServiceProvider, stoppingToken);
+                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
             }
         }
 
@@ -75,53 +76,46 @@ public sealed class ValidationJobProcessor : BackgroundService
                     return;
                 }
 
-                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.TitleId, groupedResults, scope.ServiceProvider, stoppingToken);
+                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
             }
         }
     }
 
-    private async Task ValidateAsync(GameVersion gameVersion, string? titleId, IEnumerable<ValidationResultEntity> results, IServiceProvider provider, CancellationToken cancellationToken)
+    private static async Task PullLatestManiaServerManagerImagesAsync(CancellationToken cancellationToken)
     {
-        var serverType = gameVersion switch
+        await Parallel.ForEachAsync(distros.Append("latest"), cancellationToken, async (distro, token) =>
         {
-            GameVersion.TM2020 => "TM2020",
-            GameVersion.TM2 => "ManiaPlanet",
-            _ => throw new InvalidOperationException("Unsupported game version: " + gameVersion)
-        };
-
-        var replaysPath = Path.Combine(serversTempDir, $"{serverType}_Latest", "UserData", "Replays");
-        Directory.CreateDirectory(replaysPath);
-
-        var validationService = provider.GetRequiredService<IValidationService>();
-
-        foreach (var result in results)
-        {
-            await validationService.StartProcessingAsync(result, cancellationToken);
-
-            if (result.Replay is not null)
+            using var process = new Process
             {
-                var replayFilePath = Path.Combine(replaysPath, $"{result.Id}.Replay.Gbx");
-                await File.WriteAllBytesAsync(replayFilePath, result.Replay.Data, cancellationToken);
-            }
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "docker",
+                    Arguments = $"pull bigbang1112/mania-server-manager:{distro}",
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                }
+            };
 
-            if (result.Ghost is not null)
-            {
-                var ghostFilePath = Path.Combine(replaysPath, $"{result.Id}.Ghost.Gbx");
-                await File.WriteAllBytesAsync(ghostFilePath, result.Ghost.Data, cancellationToken);
-            }
-        }
+            process.Start();
 
+            var stdout = await process.StandardOutput.ReadToEndAsync(token);
+
+            await process.WaitForExitAsync(token);
+        });
+    }
+
+    private async Task SetupServerAsync(string serverType, IEnumerable<ValidationResultEntity> results, CancellationToken cancellationToken)
+    {
         var titles = string.Join(',', results.Select(x => x.TitleId).Distinct());
-        var resultDict = results.ToDictionary(x => x.Id);
 
         var args = string.Join(' ', [
             "run",
             "--rm",
             "-e", $"MSM_SERVER_TYPE={serverType}",
-            "-e", "MSM_VALIDATE_PATH=.",
-            "-e", "MSM_ONLY_STDOUT=True",
-            "-e", $"MSM_TITLE={titleId}",
             "-e", $"MSM_PREPARE_TITLES={titles}",
+            "-e", "MSM_ONLY_SETUP=True",
             "-v", $"\"{archivesTempDir}:/app/data/archives\"",
             "-v", $"\"{serversTempDir}:/app/data/servers\"",
             "bigbang1112/mania-server-manager",
@@ -142,9 +136,117 @@ public sealed class ValidationJobProcessor : BackgroundService
 
         process.Start();
 
-        await Task.WhenAll(ProcessStdoutAsync(resultDict, process, validationService, cancellationToken), ProcessStderrAsync(process, cancellationToken));
+        // TODO send to request logs
+        string? line;
+        while ((line = await process.StandardOutput.ReadLineAsync(cancellationToken)) is not null)
+        {
+            logger.LogInformation("Validation setup [stdout]: {Line}", line);
+        }
 
         await process.WaitForExitAsync(cancellationToken);
+    }
+
+    private async Task ValidateAsync(GameVersion gameVersion, string? titleId, IEnumerable<ValidationResultEntity> results, IValidationService validationService, CancellationToken cancellationToken)
+    {
+        var serverType = gameVersion switch
+        {
+            GameVersion.TM2020 => "TM2020",
+            GameVersion.TM2 => "ManiaPlanet",
+            _ => throw new InvalidOperationException("Unsupported game version: " + gameVersion)
+        };
+
+        var replaysPath = Path.Combine(serversTempDir, $"{serverType}_Latest", "UserData", "Replays");
+        Directory.CreateDirectory(replaysPath);
+
+        foreach (var result in results)
+        {
+            await validationService.StartProcessingAsync(result, distros, cancellationToken);
+
+            if (result.Replay is not null)
+            {
+                var replayFilePath = Path.Combine(replaysPath, $"{result.Id}.Replay.Gbx");
+                await File.WriteAllBytesAsync(replayFilePath, result.Replay.Data, cancellationToken);
+            }
+
+            if (result.Ghost is not null)
+            {
+                var ghostFilePath = Path.Combine(replaysPath, $"{result.Id}.Ghost.Gbx");
+                await File.WriteAllBytesAsync(ghostFilePath, result.Ghost.Data, cancellationToken);
+            }
+        }
+
+        await SetupServerAsync(serverType, results, cancellationToken);
+
+        var resultDict = results.ToDictionary(x => x.Id);
+
+        var tasks = new Dictionary<string, Task[]>();
+        var processes = new Dictionary<string, Process>();
+
+        foreach (var distro in distros)
+        {
+            // change targetted results from Pending to Processing (or something else to Processing)
+            foreach (var result in results)
+            {
+                var distroResult = result.Distros.FirstOrDefault(x => x.DistroId == distro);
+
+                if (distroResult is not null)
+                {
+                    await validationService.StartDistroProcessingAsync(distroResult, cancellationToken);
+                }
+            }
+
+            var args = string.Join(' ', [
+                "run",
+                "--rm",
+                "-e", $"MSM_SERVER_TYPE={serverType}",
+                "-e", "MSM_VALIDATE_PATH=.",
+                "-e", "MSM_ONLY_STDOUT=True",
+                "-e", $"MSM_TITLE={titleId}",
+                "-v", $"\"{archivesTempDir}:/app/data/archives\"",
+                "-v", $"\"{serversTempDir}:/app/data/servers\"",
+                $"bigbang1112/mania-server-manager:{distro}",
+            ]);
+
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = "docker",
+                    Arguments = args,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                }
+            };
+
+            process.Start();
+
+            processes[distro] = process;
+            tasks[distro] = [
+                ProcessStdoutAsync(resultDict, process, distro, validationService, cancellationToken), 
+                ProcessStderrAsync(process, cancellationToken),
+                process.WaitForExitAsync(cancellationToken)
+            ];
+        }
+
+        await Task.WhenAll(tasks.SelectMany(x => x.Value));
+
+        foreach (var process in processes.Values)
+        {
+            process.Dispose();
+        }
+
+        foreach (var result in results)
+        {
+            // determine global isValid from distros
+            result.IsValid = result.Distros.Any(x => x.IsValid.GetValueOrDefault());
+            result.IsValidExtracted = result.Distros.All(x => x.IsValidExtracted is null)
+                ? null
+                : result.Distros.Any(x => x.IsValidExtracted.GetValueOrDefault());
+
+            await validationService.FinishProcessingAsync(result, cancellationToken);
+        }
     }
 
     private async Task ProcessStderrAsync(Process process, CancellationToken cancellationToken)
@@ -156,135 +258,176 @@ public sealed class ValidationJobProcessor : BackgroundService
         }
     }
 
-    private async Task ProcessStdoutAsync(IDictionary<Guid, ValidationResultEntity> resultDict, Process process, IValidationService validationService, CancellationToken cancellationToken)
+    private async Task ProcessStdoutAsync(
+        IDictionary<Guid, ValidationResultEntity> resultDict, 
+        Process process, 
+        string distro, 
+        IValidationService validationService, 
+        CancellationToken cancellationToken)
     {
         var startedAt = DateTimeOffset.UtcNow;
 
-        await foreach (var validatePathResult in JsonSerializer.DeserializeAsyncEnumerable<JsonElement>(process.StandardOutput.BaseStream, cancellationToken: cancellationToken))
+        try
         {
-            var fileName = validatePathResult.GetProperty("FileName").GetString();
-
-            if (string.IsNullOrEmpty(fileName))
+            await foreach (var validatePathResult in JsonSerializer.DeserializeAsyncEnumerable<JsonElement>(process.StandardOutput.BaseStream, cancellationToken: cancellationToken))
             {
-                logger.LogWarning("Validation result with empty FileName!");
-                continue;
-            }
+                var fileName = validatePathResult.GetProperty("FileName").GetString();
 
-            var resultId = Guid.Parse(GBX.NET.GbxPath.GetFileNameWithoutExtension(fileName));
-            
-            if (!resultDict.TryGetValue(resultId, out var result))
-            {
-                logger.LogWarning("Validation result {ResultId} not found in dictionary!", resultId);
-                continue;
-            }
-
-            logger.LogInformation("Validation result {ResultId}: {Result}", result.Id, validatePathResult);
-
-            result.Status = ValidationStatus.Completed;
-            result.RawJsonResult = validatePathResult.ToString();
-            result.CompletedAt = DateTimeOffset.UtcNow;
-
-            foreach (var property in validatePathResult.EnumerateObject())
-            {
-                switch (property.Name)
+                if (string.IsNullOrEmpty(fileName))
                 {
-                    case "FileName":
-                        // handled beforehand
-                        break;
-                    case "IsValid":
-                        result.IsValid = property.Value.GetBoolean();
-                        break;
-                    case "NbCheckpoints":
-                        result.DeclaredNbCheckpoints = property.Value.GetInt32();
-                        break;
-                    case "NbRespawns":
-                        result.DeclaredNbRespawns = property.Value.GetInt32();
-                        break;
-                    case "Time":
-                        {
-                            var time = (int)property.Value.GetUInt32();
-                            result.DeclaredTime = time == -1 ? null : TimeInt32.FromMilliseconds(time);
-                        }
-                        break;
-                    case "Score":
-                        result.DeclaredScore = property.Value.GetInt32();
-                        break;
-                    case "DeclaredResult":
-                        foreach (var subProperty in property.Value.EnumerateObject())
-                        {
-                            switch (subProperty.Name)
+                    logger.LogWarning("Validation result with empty FileName!");
+                    continue;
+                }
+
+                var resultId = Guid.Parse(GBX.NET.GbxPath.GetFileNameWithoutExtension(fileName));
+                var isGhost = fileName.EndsWith(".Ghost.Gbx", StringComparison.OrdinalIgnoreCase);
+
+                if (!resultDict.TryGetValue(resultId, out var result))
+                {
+                    logger.LogWarning("Validation result {ResultId} not found in dictionary!", resultId);
+                    continue;
+                }
+
+                logger.LogInformation("Validation result {ResultId} {Distro}: {Result}", result.Id, distro, validatePathResult);
+
+                var distroResult = result.Distros.FirstOrDefault(x => x.DistroId == distro);
+
+                if (distroResult is null)
+                {
+                    logger.LogWarning("Validation result {ResultId}: Distro result for {Distro} not found.", result.Id, distro);
+                    continue;
+                }
+
+                //result.Status = ValidationStatus.Completed;
+                //result.CompletedAt = DateTimeOffset.UtcNow;
+
+                // global isValid can stay and be determined by at least 1 distro being valid
+
+                foreach (var property in validatePathResult.EnumerateObject())
+                {
+                    switch (property.Name)
+                    {
+                        case "FileName":
+                            // handled beforehand
+                            break;
+                        case "IsValid":
+                            if (isGhost && result.IsGhostExtracted)
+                                distroResult.IsValidExtracted = property.Value.GetBoolean();
+                            else
+                                distroResult.IsValid = property.Value.GetBoolean();
+                            break;
+                        case "NbCheckpoints":
+                            distroResult.DeclaredNbCheckpoints = property.Value.GetInt32();
+                            break;
+                        case "NbRespawns":
+                            distroResult.DeclaredNbRespawns = property.Value.GetInt32();
+                            break;
+                        case "Time":
                             {
-                                case "NbCheckpoints":
-                                    result.DeclaredNbCheckpoints = subProperty.Value.GetInt32();
-                                    break;
-                                case "NbRespawns":
-                                    result.DeclaredNbRespawns = subProperty.Value.GetInt32();
-                                    break;
-                                case "Time":
-                                    var time = (int)subProperty.Value.GetUInt32();
-                                    result.DeclaredTime = time == -1 ? null : TimeInt32.FromMilliseconds(time);
-                                    break;
-                                case "Score":
-                                    result.DeclaredScore = subProperty.Value.GetInt32();
-                                    break;
+                                var time = (int)property.Value.GetUInt32();
+                                distroResult.DeclaredTime = time == -1 ? null : TimeInt32.FromMilliseconds(time);
                             }
-                        }
-                        break;
-                    case "ValidatedResult":
-                        foreach (var subProperty in property.Value.EnumerateObject())
-                        {
-                            switch (subProperty.Name)
+                            break;
+                        case "Score":
+                            distroResult.DeclaredScore = property.Value.GetInt32();
+                            break;
+                        case "DeclaredResult":
+                            foreach (var subProperty in property.Value.EnumerateObject())
                             {
-                                case "NbRespawns":
-                                    result.ValidatedNbRespawns = subProperty.Value.GetInt32();
-                                    break;
-                                case "NbCheckpoints":
-                                    result.ValidatedNbCheckpoints = subProperty.Value.GetInt32();
-                                    break;
-                                case "Time":
-                                    var time = (int)subProperty.Value.GetUInt32();
-                                    result.ValidatedTime = time == -1 ? null : TimeInt32.FromMilliseconds(time);
-                                    break;
-                                case "Score":
-                                    result.ValidatedScore = subProperty.Value.GetInt32();
-                                    break;
+                                switch (subProperty.Name)
+                                {
+                                    case "NbCheckpoints":
+                                        distroResult.DeclaredNbCheckpoints = subProperty.Value.GetInt32();
+                                        break;
+                                    case "NbRespawns":
+                                        var nbRespawns = (int)subProperty.Value.GetUInt32();
+                                        distroResult.DeclaredNbRespawns = nbRespawns == -1 ? null : nbRespawns;
+                                        break;
+                                    case "Time":
+                                        var time = (int)subProperty.Value.GetUInt32();
+                                        distroResult.DeclaredTime = time == -1 ? null : TimeInt32.FromMilliseconds(time);
+                                        break;
+                                    case "Score":
+                                        distroResult.DeclaredScore = subProperty.Value.GetInt32();
+                                        break;
+                                }
                             }
-                        }
-                        break;
-                    case "Inputs":
-                        result.InputsResult = property.Value.ToString();
-                        break;
-                    case "AccountId":
-                        if (Guid.TryParse(property.Value.GetString(), out var guid))
-                        {
-                            result.AccountId = guid;
-                        }
-                        break;
-                    case "GameBuild":
-                        if (result.ExeVersion != property.Value.GetString())
-                        {
-                            logger.LogWarning("Validation result {ResultId}: GameBuild mismatch! Expected {Expected}, got {Got}", result.Id, result.ExeVersion, property.Value.GetString());
-                        }
-                        break;
-                    case "MapUid":
-                        if (result.MapUid != property.Value.GetString())
-                        {
-                            logger.LogWarning("Validation result {ResultId}: MapUid mismatch! Expected {Expected}, got {Got}", result.Id, result.MapUid, property.Value.GetString());
-                        }
-                        break;
-                    case "Login":
-                        if (result.Login != property.Value.GetString())
-                        {
-                            logger.LogWarning("Validation result {ResultId}: Login mismatch! Expected {Expected}, got {Got}", result.Id, result.Login, property.Value.GetString());
-                        }
-                        break;
-                    default:
-                        logger.LogWarning("Validation result {ResultId}: Unknown property {PropertyName}", result.Id, property.Name);
-                        break;
+                            break;
+                        case "ValidatedResult":
+                            if (property.Value.ValueKind != JsonValueKind.Null)
+                            {
+                                foreach (var subProperty in property.Value.EnumerateObject())
+                                {
+                                    switch (subProperty.Name)
+                                    {
+                                        case "NbCheckpoints":
+                                            distroResult.ValidatedNbCheckpoints = subProperty.Value.GetInt32();
+                                            break;
+                                        case "NbRespawns":
+                                            distroResult.ValidatedNbRespawns = (int)subProperty.Value.GetUInt32();
+                                            break;
+                                        case "Time":
+                                            var time = (int)subProperty.Value.GetUInt32();
+                                            distroResult.ValidatedTime = time == -1 ? null : TimeInt32.FromMilliseconds(time);
+                                            break;
+                                        case "Score":
+                                            distroResult.ValidatedScore = subProperty.Value.GetInt32();
+                                            break;
+                                    }
+                                }
+                            }
+                            break;
+                        case "Inputs":
+                            distroResult.InputsResult = property.Value.ToString();
+                            break;
+                        case "Desc":
+                            distroResult.Desc = property.Value.GetString();
+                            break;
+                        case "AccountId":
+                            if (Guid.TryParse(property.Value.GetString(), out var guid))
+                            {
+                                distroResult.AccountId = guid;
+                            }
+                            break;
+                        case "GameBuild":
+                            if (result.ExeVersion != property.Value.GetString())
+                            {
+                                logger.LogWarning("Validation result {ResultId}: GameBuild mismatch! Expected {Expected}, got {Got}", result.Id, result.ExeVersion, property.Value.GetString());
+                            }
+                            break;
+                        case "MapUid":
+                            if (result.MapUid != property.Value.GetString())
+                            {
+                                logger.LogWarning("Validation result {ResultId}: MapUid mismatch! Expected {Expected}, got {Got}", result.Id, result.MapUid, property.Value.GetString());
+                            }
+                            break;
+                        case "Login":
+                            if (result.Login != property.Value.GetString())
+                            {
+                                logger.LogWarning("Validation result {ResultId}: Login mismatch! Expected {Expected}, got {Got}", result.Id, result.Login, property.Value.GetString());
+                            }
+                            break;
+                        default:
+                            logger.LogWarning("Validation result {ResultId}: Unknown property {PropertyName}", result.Id, property.Name);
+                            break;
+                    }
+                }
+
+                await dbSemaphore.WaitAsync(cancellationToken);
+
+                try
+                {
+                    await validationService.FinishDistroProcessingAsync(distroResult, cancellationToken);
+                }
+                finally
+                {
+                    dbSemaphore.Release();
                 }
             }
-
-            await validationService.FinishProcessingAsync(result, cancellationToken);
+        }
+        catch (JsonException ex)
+        {
+            logger.LogError(ex, "Failed to deserialize validation result JSON for distro {Distro}", distro);
         }
     }
 }

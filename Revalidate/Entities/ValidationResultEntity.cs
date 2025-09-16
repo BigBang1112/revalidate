@@ -1,6 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Revalidate.Api;
-using Revalidate.Models;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using TmEssentials;
@@ -75,28 +74,12 @@ public sealed class ValidationResultEntity
     public required string? MapUid { get; set; }
 
     public bool? IsValid { get; set; }
-
-    public int DeclaredNbCheckpoints { get; set; }
-    public int DeclaredNbRespawns { get; set; }
-    public TimeInt32? DeclaredTime { get; set; }
-    public int DeclaredScore { get; set; }
-
-    public int? ValidatedNbCheckpoints { get; set; }
-    public int? ValidatedNbRespawns { get; set; }
-    public TimeInt32? ValidatedTime { get; set; }
-    public int? ValidatedScore { get; set; }
-
-    public Guid? AccountId { get; set; }
-
-    [StringLength(1024)]
-    public string? InputsResult { get; set; }
-
-    [StringLength(short.MaxValue)]
-    public string? RawJsonResult { get; set; }
+    public bool? IsValidExtracted { get; set; }
 
     public Dictionary<string, string[]> Problems { get; set; } = [];
 
     public List<GhostCheckpointEntity> Checkpoints { get; set; } = [];
     public List<GhostInputEntity> Inputs { get; set; } = [];
     public List<ValidationRequestEntity> Requests { get; set; } = [];
+    public List<ValidationDistroResultEntity> Distros { get; set; } = [];
 }

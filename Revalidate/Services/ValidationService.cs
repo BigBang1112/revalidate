@@ -22,6 +22,7 @@ public interface IValidationService
     Task<IEnumerable<ValidationRequest>> GetRequestDtosAsync(CancellationToken cancellationToken);
     Task<ValidationRequest?> GetRequestDtoByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<bool> DeleteRequestAsync(Guid id, CancellationToken cancellationToken);
+    Task<ValidationResultEntity?> GetResultByIdAsync(Guid resultId, CancellationToken cancellationToken);
     Task<ValidationResult?> GetResultDtoByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<IEnumerable<ValidationResult>> GetAllResultDtosAsync(CancellationToken cancellationToken);
     Task<bool> DeleteResultAsync(Guid id, CancellationToken cancellationToken);
@@ -29,7 +30,9 @@ public interface IValidationService
     Task<DownloadContent?> GetResultGhostDownloadAsync(Guid id, CancellationToken cancellationToken);
     Task<IEnumerable<GhostInput>> GetResultGhostInputDtosByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<IEnumerable<ValidationResultEntity>> GetAllIncompleteResultsAsync(CancellationToken stoppingToken);
-    Task StartProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken);
+    Task StartProcessingAsync(ValidationResultEntity result, string[] distros, CancellationToken cancellationToken);
+    Task StartDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken);
+    Task FinishDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken);
     Task FinishProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken);
 }
 
@@ -105,6 +108,9 @@ public sealed class ValidationService : IValidationService
                 if (gbx is Gbx<CGameCtnReplayRecord> or Gbx<CGameCtnGhost>)
                 {
                     var existingResult = await db.ValidationResults
+                        .Include(x => x.Replay)
+                        .Include(x => x.Ghost)
+                        .Include(x => x.Distros)
                         .Include(x => x.Checkpoints)
                         .FirstOrDefaultAsync(r => r.Sha256.SequenceEqual(sha256), cancellationToken);
 
@@ -186,6 +192,8 @@ public sealed class ValidationService : IValidationService
                 .ThenInclude(x => x.Replay)
             .Include(x => x.Results)
                 .ThenInclude(x => x.Ghost)
+            .Include(x => x.Results)
+                .ThenInclude(x => x.Distros)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
@@ -227,26 +235,38 @@ public sealed class ValidationService : IValidationService
                     TitleChecksum = result.TitleChecksum == null ? null : Convert.ToHexStringLower(result.TitleChecksum),
                     Login = result.Login,
                     MapUid = result.MapUid,
-                    IsValid = result.IsValid,
-                    DeclaredResult = new ValidationRaceResult
-                    {
-                        NbCheckpoints = result.DeclaredNbCheckpoints,
-                        NbRespawns = result.DeclaredNbRespawns,
-                        Time = result.DeclaredTime,
-                        Score = result.DeclaredScore,
-                    },
-                    ValidatedResult = result.ValidatedNbRespawns == null || result.ValidatedNbCheckpoints == null || result.ValidatedScore == null
-                        ? null
-                        : new ValidationRaceResult
-                        {
-                            NbCheckpoints = result.ValidatedNbCheckpoints.Value,
-                            NbRespawns = result.ValidatedNbRespawns.Value,
-                            Time = result.ValidatedTime,
-                            Score = result.ValidatedScore.Value,
-                        },
-                    AccountId = result.AccountId,
-                    InputsResult = result.InputsResult,
                     NbInputs = result.NbInputs,
+                    IsValid = result.IsValid,
+                    IsValidExtracted = result.IsValidExtracted,
+                    Distros = result.Distros.Select(distro => new ValidationDistroResult
+                    {
+                        Id = distro.Id,
+                        DistroId = distro.DistroId,
+                        Status = distro.Status,
+                        IsValid = distro.IsValid,
+                        IsValidExtracted = distro.IsValidExtracted,
+                        DeclaredResult = distro.DeclaredNbCheckpoints == null || distro.DeclaredScore == null
+                            ? null
+                            : new ValidationRaceResult
+                            {
+                                NbCheckpoints = distro.DeclaredNbCheckpoints.Value,
+                                NbRespawns = distro.DeclaredNbRespawns,
+                                Time = distro.DeclaredTime,
+                                Score = distro.DeclaredScore.Value,
+                            },
+                        ValidatedResult = distro.ValidatedNbRespawns == null || distro.ValidatedNbCheckpoints == null || distro.ValidatedScore == null
+                            ? null
+                            : new ValidationRaceResult
+                            {
+                                NbCheckpoints = distro.ValidatedNbCheckpoints.Value,
+                                NbRespawns = distro.ValidatedNbRespawns,
+                                Time = distro.ValidatedTime,
+                                Score = distro.ValidatedScore.Value,
+                            },
+                        AccountId = distro.AccountId,
+                        InputsResult = distro.InputsResult,
+                        Desc = distro.Desc,
+                    }).ToImmutableList(),
                     Checkpoints = result.Checkpoints.OrderBy(x => x.Id).Select(checkpoint => new GhostCheckpoint
                     {
                         Time = checkpoint.Time,
@@ -263,6 +283,16 @@ public sealed class ValidationService : IValidationService
         return await db.ValidationRequests
             .Where(r => r.Id == id)
             .ExecuteDeleteAsync(cancellationToken) > 0;
+    }
+
+    public async Task<ValidationResultEntity?> GetResultByIdAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return await db.ValidationResults
+            .Include(x => x.Replay)
+            .Include(x => x.Ghost)
+            .Include(x => x.Distros)
+            .Include(x => x.Checkpoints)
+            .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
     }
 
     public async Task<ValidationResult?> GetResultDtoByIdAsync(Guid id, CancellationToken cancellationToken)
@@ -298,26 +328,38 @@ public sealed class ValidationService : IValidationService
                 TitleChecksum = result.TitleChecksum == null ? null : Convert.ToHexStringLower(result.TitleChecksum),
                 Login = result.Login,
                 MapUid = result.MapUid,
+                NbInputs = result.NbInputs,
                 IsValid = result.IsValid,
-                DeclaredResult = new ValidationRaceResult
+                IsValidExtracted = result.IsValidExtracted,
+                Distros = result.Distros.Select(distro => new ValidationDistroResult
                 {
-                    NbCheckpoints = result.DeclaredNbCheckpoints,
-                    NbRespawns = result.DeclaredNbRespawns,
-                    Time = result.DeclaredTime,
-                    Score = result.DeclaredScore,
-                },
-                ValidatedResult = result.ValidatedNbRespawns == null || result.ValidatedNbCheckpoints == null || result.ValidatedScore == null
+                    Id = distro.Id,
+                    DistroId = distro.DistroId,
+                    Status = distro.Status,
+                    IsValid = distro.IsValid,
+                    IsValidExtracted = distro.IsValidExtracted,
+                    DeclaredResult = distro.DeclaredNbCheckpoints == null || distro.DeclaredScore == null
                         ? null
                         : new ValidationRaceResult
                         {
-                            NbCheckpoints = result.ValidatedNbCheckpoints.Value,
-                            NbRespawns = result.ValidatedNbRespawns.Value,
-                            Time = result.ValidatedTime,
-                            Score = result.ValidatedScore.Value,
+                            NbCheckpoints = distro.DeclaredNbCheckpoints.Value,
+                            NbRespawns = distro.DeclaredNbRespawns,
+                            Time = distro.DeclaredTime,
+                            Score = distro.DeclaredScore.Value,
                         },
-                AccountId = result.AccountId,
-                InputsResult = result.InputsResult,
-                NbInputs = result.NbInputs,
+                    ValidatedResult = distro.ValidatedNbRespawns == null || distro.ValidatedNbCheckpoints == null || distro.ValidatedScore == null
+                        ? null
+                        : new ValidationRaceResult
+                        {
+                            NbCheckpoints = distro.ValidatedNbCheckpoints.Value,
+                            NbRespawns = distro.ValidatedNbRespawns,
+                            Time = distro.ValidatedTime,
+                            Score = distro.ValidatedScore.Value,
+                        },
+                    AccountId = distro.AccountId,
+                    InputsResult = distro.InputsResult,
+                    Desc = distro.Desc,
+                }).ToImmutableList(),
                 Checkpoints = result.Checkpoints.OrderBy(x => x.Id).Select(checkpoint => new GhostCheckpoint
                 {
                     Time = checkpoint.Time,
@@ -346,6 +388,7 @@ public sealed class ValidationService : IValidationService
             .Where(r => r.Status == ValidationStatus.Pending || r.Status == ValidationStatus.Processing)
             .Include(x => x.Replay)
             .Include(x => x.Ghost)
+            .Include(x => x.Distros)
             .ToListAsync(cancellationToken);
     }
 
@@ -395,9 +438,35 @@ public sealed class ValidationService : IValidationService
             .ToListAsync(cancellationToken);
     }
 
-    public async Task StartProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken)
+    public async Task StartProcessingAsync(ValidationResultEntity result, string[] distros, CancellationToken cancellationToken)
     {
         result.Status = ValidationStatus.Processing;
+
+        foreach (var distro in distros.Where(d => !result.Distros.Any(dd => dd.DistroId == d)))
+        {
+            var distroResult = new ValidationDistroResultEntity
+            {
+                Result = result,
+                DistroId = distro,
+                Status = ValidationStatus.Pending
+            };
+
+            await db.ValidationDistroResults.AddAsync(distroResult, cancellationToken);
+            result.Distros.Add(distroResult);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task StartDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken)
+    {
+        result.Status = ValidationStatus.Processing;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task FinishDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken)
+    {
+        result.Status = ValidationStatus.Completed;
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -438,18 +507,22 @@ public sealed class ValidationService : IValidationService
         bool isGhostExtracted,
         ConcurrentDictionary<string, List<string>> errorBag)
     {
+        var gameVersion = ghost.GameVersion switch
+        {
+            GBX.NET.GameVersion.TM2020 => Api.GameVersion.TM2020,
+            GBX.NET.GameVersion.MP4 or GBX.NET.GameVersion.MP4 | GBX.NET.GameVersion.TM2020 => Api.GameVersion.TM2,
+            GBX.NET.GameVersion.TMF => Api.GameVersion.TMF,
+            _ => Api.GameVersion.None
+        };
+
+        var inputs = ghost.Inputs ?? ghost.PlayerInputs?.FirstOrDefault()?.Inputs ?? [];
+
         var result = new ValidationResultEntity
         {
             Sha256 = sha256,
             //Crc32
             FileName = filePath,
-            GameVersion = ghost.GameVersion switch
-            {
-                GBX.NET.GameVersion.TM2020 => Api.GameVersion.TM2020,
-                GBX.NET.GameVersion.MP4 or GBX.NET.GameVersion.MP4 | GBX.NET.GameVersion.TM2020 => Api.GameVersion.TM2,
-                GBX.NET.GameVersion.TMF => Api.GameVersion.TMF,
-                _ => Api.GameVersion.None
-            },
+            GameVersion = gameVersion,
             Replay = replayFileEntity,
             Ghost = ghostFileEntity,
             IsGhostExtracted = isGhostExtracted,
@@ -467,7 +540,7 @@ public sealed class ValidationService : IValidationService
             SteeringWheelSensitivity = ghost.SteeringWheelSensitivity,
             TitleId = ghost.Validate_TitleId,
             TitleChecksum = ghost.Validate_TitleChecksum?.GetBytes(),
-            NbInputs = ghost.Inputs?.Count ?? 0,
+            NbInputs = inputs.Count,
             Login = ghost.GhostLogin,
             MapUid = ghost.Validate_ChallengeUid
         };
@@ -480,7 +553,7 @@ public sealed class ValidationService : IValidationService
             Speed = cp.Speed
         }) ?? []);
 
-        result.Inputs.AddRange(ghost.Inputs?.Select(input => new GhostInputEntity
+        result.Inputs.AddRange(inputs.Select(input => new GhostInputEntity
         {
             ValidationResult = result,
             Time = input.Time,

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Revalidate;
 
@@ -11,9 +12,11 @@ using Revalidate;
 namespace Revalidate.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250915220152_AddDistroResult")]
+    partial class AddDistroResult
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -121,21 +124,17 @@ namespace Revalidate.Migrations
                     b.Property<Guid?>("AccountId")
                         .HasColumnType("char(36)");
 
-                    b.Property<int?>("DeclaredNbCheckpoints")
+                    b.Property<int>("DeclaredNbCheckpoints")
                         .HasColumnType("int");
 
-                    b.Property<int?>("DeclaredNbRespawns")
+                    b.Property<int>("DeclaredNbRespawns")
                         .HasColumnType("int");
 
-                    b.Property<int?>("DeclaredScore")
+                    b.Property<int>("DeclaredScore")
                         .HasColumnType("int");
 
                     b.Property<int?>("DeclaredTime")
                         .HasColumnType("int");
-
-                    b.Property<string>("Desc")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
 
                     b.Property<string>("DistroId")
                         .IsRequired()
@@ -146,10 +145,10 @@ namespace Revalidate.Migrations
                         .HasMaxLength(1024)
                         .HasColumnType("varchar(1024)");
 
-                    b.Property<bool?>("IsValid")
+                    b.Property<bool>("IsValid")
                         .HasColumnType("tinyint(1)");
 
-                    b.Property<bool?>("IsValidExtracted")
+                    b.Property<bool>("IsValidExtracted")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<string>("RawJsonResult")
@@ -158,9 +157,6 @@ namespace Revalidate.Migrations
 
                     b.Property<Guid?>("ResultId")
                         .HasColumnType("char(36)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
 
                     b.Property<int?>("ValidatedNbCheckpoints")
                         .HasColumnType("int");

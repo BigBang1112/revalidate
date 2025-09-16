@@ -33,11 +33,9 @@ public sealed class ValidationResult
     public required string? TitleChecksum { get; init; }
     public required string? Login { get; init; }
     public required string? MapUid { get; init; }
-    public required bool? IsValid { get; init; }
-    public required ValidationRaceResult DeclaredResult { get; init; }
-    public required ValidationRaceResult? ValidatedResult { get; init; }
-    public required Guid? AccountId { get; init; }
-    public required string? InputsResult { get; init; }
     public required int NbInputs { get; init; }
+    public required bool? IsValid { get; init; }
+    public required bool? IsValidExtracted { get; init; }
+    public required ImmutableList<ValidationDistroResult> Distros { get; init; }
     public required ImmutableList<GhostCheckpoint> Checkpoints { get; init; }
 }

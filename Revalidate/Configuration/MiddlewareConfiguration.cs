@@ -26,7 +26,7 @@ public static class MiddlewareConfiguration
             ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
         }).RequireAuthorization();
 
-        app.MapOpenApi();
+        app.MapOpenApi().CacheOutput();
         app.MapScalarApiReference(options =>
         {
             options.Theme = ScalarTheme.DeepSpace;

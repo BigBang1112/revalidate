@@ -7,54 +7,36 @@ namespace Revalidate.Endpoints;
 
 public static class ResultEndpoints
 {
-    private static class RouteNames
-    {
-        public const string GetAll = "Result_GetAll";
-        public const string GetById = "Result_GetById";
-        public const string GetEventsById = "Result_GetEventsById";
-        public const string GetInputsById = "Result_GetInputsById";
-        public const string Delete = "Result_Delete";
-        public const string DownloadReplayById = "Result_DownloadReplayById";
-        public const string DownloadGhostById = "Result_DownloadGhostById";
-    }
-
     public static void Map(RouteGroupBuilder group)
     {
         group.WithTags("ValidationResult");
 
         group.MapGet("/", GetAll)
-            .WithName(RouteNames.GetAll)
             .WithSummary("Validation results")
             .WithDescription("Returns a list of all validation results.");
 
         group.MapGet("/{id:guid}", GetById)
-            .WithName(RouteNames.GetById)
             .WithSummary("Validation result (by ID)")
             .WithDescription("Returns the validation result by ID.");
 
         group.MapGet("/{id:guid}/events", GetEventsById)
-            .WithName(RouteNames.GetEventsById)
             .WithSummary("Validation result events (by ID)")
             .WithDescription("Returns events for a validation result by ID.");
 
         group.MapGet("/{id:guid}/inputs", GetInputsById)
-            .WithName(RouteNames.GetInputsById)
             .WithSummary("Validation ghost inputs (by ID)")
             .WithDescription("Returns inputs for a validation ghost by ID.");
 
         group.MapDelete("/{id:guid}", Delete)
-            .WithName(RouteNames.Delete)
             .WithSummary("Validation result")
             .WithDescription("Deletes a validation result by ID. Returns 404 if it does not exist.")
             .RequireAuthorization();
 
         group.MapGet("/{id:guid}/replay/download", DownloadReplayById)
-            .WithName(RouteNames.DownloadReplayById)
             .WithSummary("Download replay (by validation result ID)")
             .WithDescription("Downloads the replay file associated with a validation result by ID.");
 
-        group.MapGet("/{id:guid}/replay/ghost", DownloadGhostById)
-            .WithName(RouteNames.DownloadGhostById)
+        group.MapGet("/{id:guid}/ghost/download", DownloadGhostById)
             .WithSummary("Download ghost (by validation result ID)")
             .WithDescription("Downloads the ghost file associated with a validation result by ID.");
     }
