@@ -1,0 +1,6 @@
+services:
+  revalidate:
+    image: ${DOCKER_REGISTRY-}revalidate
+    build:
+      context: .
+      dockerfile: Revalidate/Dockerfile

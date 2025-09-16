@@ -1,5 +1,5 @@
 # Debug phase
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:9.0-alpine AS base
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS base
 USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
@@ -7,7 +7,7 @@ EXPOSE 8081
 
 
 # Publish phase
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:9.0-alpine AS publish
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS publish
 ARG TARGETARCH
 ARG APPNAME=Revalidate
 WORKDIR /src
@@ -26,7 +26,7 @@ RUN dotnet publish -a $TARGETARCH --no-restore -o /app
 
 
 # Final phase
-FROM mcr.microsoft.com/dotnet/aspnet:9.0-alpine
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
 EXPOSE 8080
 EXPOSE 8081
 

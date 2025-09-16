@@ -5,17 +5,19 @@
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
-    </PropertyGroup>
+		<UserSecretsId>58ab471d-2e43-421a-aef8-1cec2fc320ed</UserSecretsId>
+		<DockerComposeProjectPath>..\docker-compose.dcproj</DockerComposeProjectPath>
+	</PropertyGroup>
 
-    <PropertyGroup Label="Configure GitInfo">
-        <!-- optional, default value: $([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), '.gitignore')) -->
-        <GitInfo_RootDirectory>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), 'Revalidate.slnx'))\.git</GitInfo_RootDirectory>
+	<PropertyGroup Label="Configure GitInfo">
+		<!-- optional, default value: $([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), '.gitignore')) -->
+		<GitInfo_RootDirectory>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), 'Revalidate.slnx'))\.git</GitInfo_RootDirectory>
 
-        <GitInfo_Namespace>Revalidate</GitInfo_Namespace>
+		<GitInfo_Namespace>Revalidate</GitInfo_Namespace>
 
-        <GitInfo_CommitAbbreviatedLength>7</GitInfo_CommitAbbreviatedLength>
+		<GitInfo_CommitAbbreviatedLength>7</GitInfo_CommitAbbreviatedLength>
 
-        <GitInfo_UseAggressiveCache>true</GitInfo_UseAggressiveCache>
+		<GitInfo_UseAggressiveCache>true</GitInfo_UseAggressiveCache>
     </PropertyGroup>
 
     <ItemGroup>
