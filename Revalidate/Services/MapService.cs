@@ -68,7 +68,11 @@ public sealed class MapService : IMapService
     public async Task<MapEntity> GetOrCreateMapAsync(GameVersion gameVersion, string mapUid, CancellationToken cancellationToken)
     {
         // because sha256 is not known, there needs to be a check for a single source of trust via !UserUploaded+MapUid+GameVersion
-        var map = await db.Maps.FirstOrDefaultAsync(x => x.GameVersion == gameVersion && x.MapUid == mapUid && !x.UserUploaded, cancellationToken);
+        var map = await db.Maps
+            .Where(x => x.GameVersion == gameVersion && x.MapUid == mapUid)
+            .OrderBy(x => !x.UserUploaded) // prefer non-user-uploaded maps
+            .ThenBy(x => x.Id) // then prefer older maps (arbitrary but stable)
+            .FirstOrDefaultAsync(cancellationToken);
 
         if (map is not null)
         {
@@ -76,6 +80,8 @@ public sealed class MapService : IMapService
         }
 
         // download from web services like tm2020, maniaplanet maps, tmx etc
+
+
         throw new NotImplementedException();
     }
 }
