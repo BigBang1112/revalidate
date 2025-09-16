@@ -1,4 +1,6 @@
 <Solution>
   <Project Path="Revalidate.Api/Revalidate.Api.csproj" Id="79513ff7-6ec5-4301-aaf1-70495e3a0c27" />
+  <Project Path="Revalidate.Frontend/Revalidate.Frontend.Client/Revalidate.Frontend.Client.csproj" Id="ce9cb7be-3092-4b48-993a-98913dbc4976" />
+  <Project Path="Revalidate.Frontend/Revalidate.Frontend/Revalidate.Frontend.csproj" Id="f3ce2d4c-20cc-4dc2-b83c-36cd0cfa21f2" />
   <Project Path="Revalidate/Revalidate.csproj" />
 </Solution>
