@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Revalidate;
 
@@ -11,9 +12,11 @@ using Revalidate;
 namespace Revalidate.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250916190845_CascadeDelete")]
+    partial class CascadeDelete
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -110,70 +113,6 @@ namespace Revalidate.Migrations
                     b.HasIndex("ValidationResultId");
 
                     b.ToTable("GhostInputs");
-                });
-
-            modelBuilder.Entity("Revalidate.Entities.MapEntity", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
-
-                    b.Property<int?>("AuthorScore")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("AuthorTime")
-                        .HasColumnType("int");
-
-                    b.Property<string>("DeformattedName")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<string>("EnvironmentId")
-                        .HasMaxLength(16)
-                        .HasColumnType("varchar(16)");
-
-                    b.Property<Guid>("FileId")
-                        .HasColumnType("char(36)");
-
-                    b.Property<int>("GameVersion")
-                        .HasColumnType("int");
-
-                    b.Property<string>("MapUid")
-                        .IsRequired()
-                        .HasMaxLength(32)
-                        .HasColumnType("varchar(32)");
-
-                    b.Property<string>("ModeId")
-                        .HasMaxLength(16)
-                        .HasColumnType("varchar(16)");
-
-                    b.Property<string>("Name")
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
-
-                    b.Property<int>("NbLaps")
-                        .HasColumnType("int");
-
-                    b.Property<byte[]>("Sha256")
-                        .IsRequired()
-                        .HasColumnType("BINARY(32)");
-
-                    b.Property<byte[]>("Thumbnail")
-                        .HasColumnType("mediumblob");
-
-                    b.Property<bool>("UserUploaded")
-                        .HasColumnType("tinyint(1)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FileId");
-
-                    b.HasIndex("MapUid");
-
-                    b.HasIndex("Sha256")
-                        .IsUnique();
-
-                    b.ToTable("Maps");
                 });
 
             modelBuilder.Entity("Revalidate.Entities.ValidationDistroResultEntity", b =>
@@ -314,9 +253,6 @@ namespace Revalidate.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
-                    b.Property<Guid?>("MapId")
-                        .HasColumnType("char(36)");
-
                     b.Property<string>("MapUid")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
@@ -340,11 +276,6 @@ namespace Revalidate.Migrations
 
                     b.Property<Guid?>("ReplayId")
                         .HasColumnType("char(36)");
-
-                    b.Property<string>("ServerVersion")
-                        .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("varchar(255)");
 
                     b.Property<byte[]>("Sha256")
                         .IsRequired()
@@ -378,8 +309,6 @@ namespace Revalidate.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("GhostId");
-
-                    b.HasIndex("MapId");
 
                     b.HasIndex("ReplayId");
 
@@ -425,17 +354,6 @@ namespace Revalidate.Migrations
                     b.Navigation("ValidationResult");
                 });
 
-            modelBuilder.Entity("Revalidate.Entities.MapEntity", b =>
-                {
-                    b.HasOne("Revalidate.Entities.FileEntity", "File")
-                        .WithMany()
-                        .HasForeignKey("FileId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("File");
-                });
-
             modelBuilder.Entity("Revalidate.Entities.ValidationDistroResultEntity", b =>
                 {
                     b.HasOne("Revalidate.Entities.ValidationResultEntity", "Result")
@@ -452,17 +370,11 @@ namespace Revalidate.Migrations
                         .WithMany()
                         .HasForeignKey("GhostId");
 
-                    b.HasOne("Revalidate.Entities.MapEntity", "Map")
-                        .WithMany()
-                        .HasForeignKey("MapId");
-
                     b.HasOne("Revalidate.Entities.FileEntity", "Replay")
                         .WithMany()
                         .HasForeignKey("ReplayId");
 
                     b.Navigation("Ghost");
-
-                    b.Navigation("Map");
 
                     b.Navigation("Replay");
                 });

@@ -12,6 +12,7 @@ public static class EndpointConfiguration
 
         ValidationEndpoints.Map(app.MapGroup("/validations"));
         ResultEndpoints.Map(app.MapGroup("/results"));
+        Endpoints.MapEndpoints.Map(app.MapGroup("/maps"));
     }
 
     private static readonly RevalidateInformation Info = new();

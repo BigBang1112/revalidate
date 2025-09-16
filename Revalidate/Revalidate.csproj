@@ -22,6 +22,7 @@
 
     <ItemGroup>
         <PackageReference Include="GBX.NET" Version="2.2.2" />
+        <PackageReference Include="GBX.NET.Imaging.SkiaSharp" Version="1.1.2" />
         <PackageReference Include="GBX.NET.LZO" Version="2.1.2" />
         <PackageReference Include="GitReader.SourceGenerator" Version="0.2.1" OutputItemType="Analyzer" ReferenceOutputAssembly="false">
           <PrivateAssets>all</PrivateAssets>

@@ -9,11 +9,11 @@ public static class ValidationEndpoints
 {
     public static void Map(RouteGroupBuilder group)
     {
-        group.WithTags("ValidationRequest");
+        group.WithTags("Validation request").WithDescription("Gay");
 
         group.MapPost("/", Validate)
             .WithSummary("Validate a replay or ghost")
-            .WithDescription("Validates a Replay.Gbx or Ghost.Gbx file. By default, a Replay.Gbx is validated against the map embedded within the replay itself. Optionally, a different Map.Gbx can be provided as the overriden reference. Ghosts are validated against a supplied map, but if no map is provided, the validation falls back to the server's stored map.")
+            .WithDescription("Validates a Replay.Gbx or Ghost.Gbx file. By default, a Replay.Gbx is validated against the map embedded within the replay itself. Optionally, a different Map.Gbx can be provided as the overriden reference. Ghosts are validated against a supplied map, but if no map is provided, the validation falls back to the server's stored map (in some cases, external map download is attempted).")
             .DisableAntiforgery();
 
         group.MapGet("/{id:guid}", GetById)

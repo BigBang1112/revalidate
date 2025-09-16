@@ -7,9 +7,11 @@ public static class MapEndpoints
         group.WithTags("Maps");
 
         group.MapGet("/maps", GetMaps)
+            .WithSummary("Available maps")
             .WithDescription("Get a list of available maps.");
 
         group.MapGet("/maps/{mapUid}", GetMapByUid)
+            .WithSummary("Map by UID")
             .WithDescription("Get information about a map.");
     }
 

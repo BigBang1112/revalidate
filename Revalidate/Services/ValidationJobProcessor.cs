@@ -14,8 +14,8 @@ public sealed class ValidationJobProcessor : BackgroundService
 
     private readonly Channel<Guid> channel;
 
-    private readonly string archivesTempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-    private readonly string serversTempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
+    private static readonly string ArchivesDir = Path.GetFullPath(Path.Combine("data", "archives"));
+    private static readonly string VersionsDir = Path.GetFullPath(Path.Combine("data", "versions"));
 
     private static readonly string[] distros = ["noble", "plucky", "bookworm-slim", "alpine", "fedora"];
 
@@ -49,9 +49,9 @@ public sealed class ValidationJobProcessor : BackgroundService
 
             var results = await validationService.GetAllIncompleteResultsAsync(stoppingToken);
 
-            foreach (var groupedResults in results.GroupBy(x => (x.GameVersion, x.TitleId)))
+            foreach (var groupedResults in results.GroupBy(x => (x.GameVersion, x.TitleId, x.ServerVersion)))
             {
-                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
+                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
             }
         }
 
@@ -68,7 +68,7 @@ public sealed class ValidationJobProcessor : BackgroundService
                 continue;
             }
 
-            foreach (var groupedResults in validationRequest.Results.Where(x => x.Status == ValidationStatus.Pending).GroupBy(x => (x.GameVersion, x.TitleId)))
+            foreach (var groupedResults in validationRequest.Results.Where(x => x.Status == ValidationStatus.Pending).GroupBy(x => (x.GameVersion, x.TitleId, x.ServerVersion)))
             {
                 if (groupedResults.Key.GameVersion == GameVersion.None)
                 {
@@ -76,7 +76,7 @@ public sealed class ValidationJobProcessor : BackgroundService
                     return;
                 }
 
-                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
+                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
             }
         }
     }
@@ -106,7 +106,7 @@ public sealed class ValidationJobProcessor : BackgroundService
         });
     }
 
-    private async Task SetupServerAsync(string serverType, IEnumerable<ValidationResultEntity> results, CancellationToken cancellationToken)
+    private async Task SetupServerAsync(string serverType, string version, IEnumerable<ValidationResultEntity> results, CancellationToken cancellationToken)
     {
         var titles = string.Join(',', results.Select(x => x.TitleId).Distinct());
 
@@ -114,10 +114,12 @@ public sealed class ValidationJobProcessor : BackgroundService
             "run",
             "--rm",
             "-e", $"MSM_SERVER_TYPE={serverType}",
+            "-e", $"MSM_SERVER_VERSION={version}",
+            "-e", "MSM_SERVER_DOWNLOAD_HOST_TM2020=http://files.v04.maniaplanet.com/server",
             "-e", $"MSM_PREPARE_TITLES={titles}",
             "-e", "MSM_ONLY_SETUP=True",
-            "-v", $"\"{archivesTempDir}:/app/data/archives\"",
-            "-v", $"\"{serversTempDir}:/app/data/servers\"",
+            "-v", $"\"{ArchivesDir}:/app/data/archives\"",
+            "-v", $"\"{VersionsDir}:/app/data/servers\"",
             "bigbang1112/mania-server-manager",
         ]);
 
@@ -146,7 +148,7 @@ public sealed class ValidationJobProcessor : BackgroundService
         await process.WaitForExitAsync(cancellationToken);
     }
 
-    private async Task ValidateAsync(GameVersion gameVersion, string? titleId, IEnumerable<ValidationResultEntity> results, IValidationService validationService, CancellationToken cancellationToken)
+    private async Task ValidateAsync(GameVersion gameVersion, string version, string? titleId, IEnumerable<ValidationResultEntity> results, IValidationService validationService, CancellationToken cancellationToken)
     {
         var serverType = gameVersion switch
         {
@@ -155,8 +157,30 @@ public sealed class ValidationJobProcessor : BackgroundService
             _ => throw new InvalidOperationException("Unsupported game version: " + gameVersion)
         };
 
-        var replaysPath = Path.Combine(serversTempDir, $"{serverType}_Latest", "UserData", "Replays");
+        var mapsPath = Path.Combine(VersionsDir, $"{serverType}_{version}", "UserData", "Maps");
+        var replaysPath = Path.Combine(VersionsDir, $"{serverType}_{version}", "UserData", "Replays");
+
+        // remove all existing files in Replays
+        if (Directory.Exists(replaysPath))
+        {
+            var files = Directory.GetFiles(replaysPath);
+            foreach (var file in files)
+            {
+                try
+                {
+                    File.Delete(file);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to delete replay file {File}", file);
+                }
+            }
+        }
+
+        Directory.CreateDirectory(mapsPath);
         Directory.CreateDirectory(replaysPath);
+
+        var addedMapIds = new HashSet<Guid>();
 
         foreach (var result in results)
         {
@@ -173,9 +197,16 @@ public sealed class ValidationJobProcessor : BackgroundService
                 var ghostFilePath = Path.Combine(replaysPath, $"{result.Id}.Ghost.Gbx");
                 await File.WriteAllBytesAsync(ghostFilePath, result.Ghost.Data, cancellationToken);
             }
+
+            if (result.Map is not null && addedMapIds.Add(result.Map.Id))
+            {
+                // MapUid will overwrite same maps so that there arent issues with it
+                var mapFilePath = Path.Combine(mapsPath, $"{result.Map.MapUid}.Map.Gbx");
+                await File.WriteAllBytesAsync(mapFilePath, result.Map.File.Data, cancellationToken);
+            }
         }
 
-        await SetupServerAsync(serverType, results, cancellationToken);
+        await SetupServerAsync(serverType, version, results, cancellationToken);
 
         var resultDict = results.ToDictionary(x => x.Id);
 
@@ -199,11 +230,13 @@ public sealed class ValidationJobProcessor : BackgroundService
                 "run",
                 "--rm",
                 "-e", $"MSM_SERVER_TYPE={serverType}",
+                "-e", $"MSM_SERVER_VERSION={version}",
+                "-e", "MSM_SERVER_DOWNLOAD_HOST_TM2020=http://files.v04.maniaplanet.com/server",
                 "-e", "MSM_VALIDATE_PATH=.",
                 "-e", "MSM_ONLY_STDOUT=True",
                 "-e", $"MSM_TITLE={titleId}",
-                "-v", $"\"{archivesTempDir}:/app/data/archives\"",
-                "-v", $"\"{serversTempDir}:/app/data/servers\"",
+                "-v", $"\"{ArchivesDir}:/app/data/archives\"",
+                "-v", $"\"{VersionsDir}:/app/data/servers\"",
                 $"bigbang1112/mania-server-manager:{distro}",
             ]);
 
@@ -340,12 +373,12 @@ public sealed class ValidationJobProcessor : BackgroundService
                                         distroResult.DeclaredNbCheckpoints = subProperty.Value.GetInt32();
                                         break;
                                     case "NbRespawns":
-                                        var nbRespawns = (int)subProperty.Value.GetUInt32();
-                                        distroResult.DeclaredNbRespawns = nbRespawns == -1 ? null : nbRespawns;
+                                        var nbRespawns = GetInt32OrUInt32(subProperty.Value);
+                                        distroResult.DeclaredNbRespawns = nbRespawns;
                                         break;
                                     case "Time":
-                                        var time = (int)subProperty.Value.GetUInt32();
-                                        distroResult.DeclaredTime = time == -1 ? null : TimeInt32.FromMilliseconds(time);
+                                        var time = GetInt32OrUInt32(subProperty.Value);
+                                        distroResult.DeclaredTime = time.HasValue ? TimeInt32.FromMilliseconds(time.Value) : null;
                                         break;
                                     case "Score":
                                         distroResult.DeclaredScore = subProperty.Value.GetInt32();
@@ -364,11 +397,11 @@ public sealed class ValidationJobProcessor : BackgroundService
                                             distroResult.ValidatedNbCheckpoints = subProperty.Value.GetInt32();
                                             break;
                                         case "NbRespawns":
-                                            distroResult.ValidatedNbRespawns = (int)subProperty.Value.GetUInt32();
+                                            distroResult.ValidatedNbRespawns = GetInt32OrUInt32(subProperty.Value);
                                             break;
                                         case "Time":
-                                            var time = (int)subProperty.Value.GetUInt32();
-                                            distroResult.ValidatedTime = time == -1 ? null : TimeInt32.FromMilliseconds(time);
+                                            var time = GetInt32OrUInt32(subProperty.Value);
+                                            distroResult.ValidatedTime = time.HasValue ? TimeInt32.FromMilliseconds(time.Value) : null;
                                             break;
                                         case "Score":
                                             distroResult.ValidatedScore = subProperty.Value.GetInt32();
@@ -429,5 +462,12 @@ public sealed class ValidationJobProcessor : BackgroundService
         {
             logger.LogError(ex, "Failed to deserialize validation result JSON for distro {Distro}", distro);
         }
+    }
+
+    // nando changed NbRespawns and similar from -1 to int.MaxValue, so this has to unify on the issue
+    private int? GetInt32OrUInt32(JsonElement element)
+    {
+        var l = element.GetInt64();
+        return l == -1 || l == int.MaxValue ? null : (int)l;
     }
 }

@@ -15,6 +15,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<FileEntity> Files { get; set; }
     public DbSet<GhostInputEntity> GhostInputs { get; set; }
     public DbSet<GhostCheckpointEntity> GhostCheckpoints { get; set; }
+    public DbSet<MapEntity> Maps { get; set; }
 
     protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
     {
@@ -39,5 +40,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             .Property(x => x.Problems)
             .HasConversion(dictConverter)
             .HasColumnType("JSON");
+
+        // TODO investigate why
+        modelBuilder.Entity<ValidationDistroResultEntity>()
+            .HasOne(x => x.Result)
+            .WithMany(x => x.Distros)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

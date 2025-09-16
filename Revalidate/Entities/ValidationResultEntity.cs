@@ -73,6 +73,11 @@ public sealed class ValidationResultEntity
     [StringLength(byte.MaxValue)]
     public required string? MapUid { get; set; }
 
+    public MapEntity? Map { get; set; }
+
+    [StringLength(byte.MaxValue)]
+    public required string ServerVersion { get; set; }
+
     public bool? IsValid { get; set; }
     public bool? IsValidExtracted { get; set; }
 

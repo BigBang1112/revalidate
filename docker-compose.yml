@@ -4,3 +4,38 @@ services:
     build:
       context: .
       dockerfile: Revalidate/Dockerfile
+    environment:
+      CONNECTIONSTRINGS__DEFAULTCONNECTION: Server=mariadb;Port=3306;Database=revalidate;User=root;
+
+  revalidate.frontend:
+    image: ${DOCKER_REGISTRY-}revalidatefrontend
+    build:
+      context: .
+      dockerfile: Revalidate.Frontend/Revalidate.Frontend/Dockerfile
+  
+  mariadb:
+    image: mariadb
+    restart: unless-stopped
+    command: --max_allowed_packet=32505856
+    environment:
+      TZ: CET
+      MARIADB_ALLOW_EMPTY_ROOT_PASSWORD: 1
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  phpmyadmin:
+    image: beeyev/phpmyadmin-lightweight
+    restart: unless-stopped
+    ports:
+      - 9014:80
+    environment:
+      PMA_HOST: mariadb
+      PMA_USER: root
+    depends_on:
+      mariadb:
+        condition: service_healthy
+

@@ -9,7 +9,7 @@ public static class ResultEndpoints
 {
     public static void Map(RouteGroupBuilder group)
     {
-        group.WithTags("ValidationResult");
+        group.WithTags("Validation result");
 
         group.MapGet("/", GetAll)
             .WithSummary("Validation results")

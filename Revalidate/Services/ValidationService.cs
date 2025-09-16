@@ -9,8 +9,11 @@ using Revalidate.Models;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Globalization;
+using System.IO;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using System.Text.RegularExpressions;
 using TmEssentials;
 
 namespace Revalidate.Services;
@@ -36,15 +39,17 @@ public interface IValidationService
     Task FinishProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken);
 }
 
-public sealed class ValidationService : IValidationService
+public sealed partial class ValidationService : IValidationService
 {
     private readonly ValidationJobProcessor validationJobProcessor;
+    private readonly IMapService mapService;
     private readonly AppDbContext db;
     private readonly ILogger<ValidationService> logger;
 
-    public ValidationService(ValidationJobProcessor validationJobProcessor, AppDbContext db, ILogger<ValidationService> logger)
+    public ValidationService(ValidationJobProcessor validationJobProcessor, IMapService mapService, AppDbContext db, ILogger<ValidationService> logger)
     {
         this.validationJobProcessor = validationJobProcessor;
+        this.mapService = mapService;
         this.db = db;
         this.logger = logger;
     }
@@ -60,6 +65,8 @@ public sealed class ValidationService : IValidationService
         {
             CreatedAt = DateTimeOffset.UtcNow
         };
+
+        var uploadedMaps = new List<UploadedMap>();
 
         foreach (var file in files)
         {
@@ -130,6 +137,13 @@ public sealed class ValidationService : IValidationService
                         replayGbx = await Gbx.ParseAsync<CGameCtnReplayRecord>(stream, cancellationToken: cancellationToken);
                         replayGbx.FilePath = file.FileName;
 
+                        var ghostCount = replayGbx.Node.GetGhosts().Count();
+                        if (ghostCount > 1)
+                        {
+                            AppendError(errorBag, file.FileName, $"Replay contains more than 1 ghost ({ghostCount}). Temporarily, this is not allowed but it will be eventually supported.");
+                            continue;
+                        }
+
                         var replayFileEntity = await ToFileEntityAsync(stream, cancellationToken);
 
                         await foreach (var result in EnumerateReplayResultsAsync(replayGbx, sha256, replayFileEntity, cancellationToken))
@@ -148,10 +162,12 @@ public sealed class ValidationService : IValidationService
                         break;
                     case Gbx<CGameCtnChallenge> mapGbx:
                         mapGbx = await Gbx.ParseAsync<CGameCtnChallenge>(stream, cancellationToken: cancellationToken);
-                        // pick Maps folder
+                        mapGbx.FilePath = file.FileName;
+
+                        uploadedMaps.Add(new UploadedMap(mapGbx, sha256, await ToFileEntityAsync(stream, cancellationToken)));
                         break;
                     default:
-                        AppendError(errorBag, file.FileName, $"File is not one of Replay.Gbx, Ghost.Gbx, or Map.Gbx.");
+                        AppendError(errorBag, file.FileName, "File is not one of Replay.Gbx, Ghost.Gbx, or Map.Gbx.");
                         continue;
                 }
             }
@@ -165,6 +181,35 @@ public sealed class ValidationService : IValidationService
                 AppendError(errorBag, file.FileName, $"File could not be parsed: {ex.Message}");
                 continue;
             }
+        }
+
+        foreach (var uploadedMap in uploadedMaps)
+        {
+            var hasGhost = validationRequest.Results.Any(x => x.MapUid == uploadedMap.MapGbx.Node.MapUid);
+
+            if (!hasGhost)
+            {
+                AppendError(errorBag, uploadedMap.MapGbx.FilePath ?? Convert.ToHexStringLower(uploadedMap.Sha256), "Map is not associated with any replay or ghost in the request.");
+                continue;
+            }
+
+            var mapEntity = await mapService.GetOrCreateMapAsync(uploadedMap, cancellationToken);
+
+            foreach (var result in validationRequest.Results.Where(x => x.MapUid == uploadedMap.MapGbx.Node.MapUid))
+            {
+                result.Map = mapEntity;
+            }
+        }
+
+        foreach (var result in validationRequest.Results.Where(x => x.Ghost is not null && x.Map is null))
+        {
+            if (result.MapUid is null)
+            {
+                AppendError(errorBag, result.FileName ?? Convert.ToHexStringLower(result.Sha256), "Ghost does not have a MapUid that would allow downloading the map externally.");
+                continue;
+            }
+
+            result.Map = await mapService.GetOrCreateMapAsync(result.GameVersion, result.MapUid, cancellationToken);
         }
 
         validationRequest.Warnings = errorBag.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToArray(), StringComparer.OrdinalIgnoreCase);
@@ -194,6 +239,9 @@ public sealed class ValidationService : IValidationService
                 .ThenInclude(x => x.Ghost)
             .Include(x => x.Results)
                 .ThenInclude(x => x.Distros)
+            .Include(x => x.Results)
+                .ThenInclude(x => x.Map)
+                    .ThenInclude(x => x!.File)
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
@@ -389,6 +437,8 @@ public sealed class ValidationService : IValidationService
             .Include(x => x.Replay)
             .Include(x => x.Ghost)
             .Include(x => x.Distros)
+            .Include(x => x.Map)
+                .ThenInclude(x => x!.File)
             .ToListAsync(cancellationToken);
     }
 
@@ -517,6 +567,8 @@ public sealed class ValidationService : IValidationService
 
         var inputs = ghost.Inputs ?? ghost.PlayerInputs?.FirstOrDefault()?.Inputs ?? [];
 
+        var serverVersion = GetServerVersion(ghost, errorBag);
+
         var result = new ValidationResultEntity
         {
             Sha256 = sha256,
@@ -542,7 +594,8 @@ public sealed class ValidationService : IValidationService
             TitleChecksum = ghost.Validate_TitleChecksum?.GetBytes(),
             NbInputs = inputs.Count,
             Login = ghost.GhostLogin,
-            MapUid = ghost.Validate_ChallengeUid
+            MapUid = ghost.Validate_ChallengeUid,
+            ServerVersion = serverVersion
         };
 
         result.Checkpoints.AddRange(ghost.Checkpoints?.Select(cp => new GhostCheckpointEntity
@@ -592,6 +645,34 @@ public sealed class ValidationService : IValidationService
         return result;
     }
 
+    private static string GetServerVersion(CGameCtnGhost ghost, ConcurrentDictionary<string, List<string>> errorBag)
+    {
+        if (string.IsNullOrWhiteSpace(ghost.Validate_ExeVersion))
+        {
+            return "Latest";
+        }
+
+        var matchExeVersion = ExeVersionRegex().Match(ghost.Validate_ExeVersion);
+
+        if (!DateTimeOffset.TryParseExact(
+            matchExeVersion.Groups[2].Value, 
+            "yyyy-MM-dd_HH_mm", 
+            CultureInfo.InvariantCulture, 
+            DateTimeStyles.AssumeUniversal, 
+            out var exeDate))
+        {
+            AppendError(errorBag, nameof(ghost.Validate_ExeVersion), $"Could not parse date from ExeVersion '{ghost.Validate_ExeVersion}'. Using: Latest");
+            return "Latest";
+        }
+
+        if (exeDate < new DateTimeOffset(2021, 10, 1, 0, 0, 0, TimeSpan.Zero))
+        {
+            return "2021-07-07";
+        }
+
+        return "Latest";
+    }
+
     private static async Task<FileEntity> ToFileEntityAsync(Stream stream, CancellationToken cancellationToken)
     {
         stream.Position = 0;
@@ -606,7 +687,6 @@ public sealed class ValidationService : IValidationService
         {
             Data = ms.ToArray(),
             LastModifiedAt = DateTimeOffset.UtcNow,
-            // Úprava generování ETag, aby odpovídal HTTP standardu (obalení uvozovkami)
             Etag = $"\"{Convert.ToHexStringLower(await MD5.HashDataAsync(ms, cancellationToken))}\""
         };
     }
@@ -646,4 +726,7 @@ public sealed class ValidationService : IValidationService
         SteerRight => nameof(SteerRight),
         _ => throw new ArgumentException($"Unknown input type: {input.GetType()}.", nameof(input))
     };
+
+    [GeneratedRegex(@"(Trackmania|ManiaPlanet) date=([0-9-_]+) (git|Svn)=([0-9a-f-]+) GameVersion=([0-9.]+)")]
+    private static partial Regex ExeVersionRegex();
 }
