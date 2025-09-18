@@ -29,10 +29,6 @@ public sealed class ValidationResultEntity
 
     public required bool IsGhostExtracted { get; set; }
 
-    public DateTimeOffset? StartedAt { get; set; }
-
-    public DateTimeOffset? CompletedAt { get; set; }
-
     public required string? GhostUid { get; set; }
 
     public required TimeInt32 EventsDuration { get; set; }

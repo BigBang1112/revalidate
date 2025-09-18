@@ -37,6 +37,8 @@ public interface IValidationService
     Task StartDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken);
     Task FinishDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken);
     Task FinishProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken);
+    Task FinishRequestAsync(ValidationRequestEntity validationRequest, CancellationToken stoppingToken);
+    Task FillMapsFromExternalSourcesAsync(IEnumerable<ValidationResultEntity> results, CancellationToken cancellationToken);
 }
 
 public sealed partial class ValidationService : IValidationService
@@ -144,7 +146,7 @@ public sealed partial class ValidationService : IValidationService
                             continue;
                         }
 
-                        var replayFileEntity = await ToFileEntityAsync(stream, cancellationToken);
+                        var replayFileEntity = await FileEntity.FromStreamAsync(stream, cancellationToken);
 
                         await foreach (var result in EnumerateReplayResultsAsync(replayGbx, sha256, replayFileEntity, cancellationToken))
                         {
@@ -155,7 +157,7 @@ public sealed partial class ValidationService : IValidationService
                         ghostGbx = await Gbx.ParseAsync<CGameCtnGhost>(stream, cancellationToken: cancellationToken);
                         ghostGbx.FilePath = file.FileName;
 
-                        var ghostFileEntity = await ToFileEntityAsync(stream, cancellationToken);
+                        var ghostFileEntity = await FileEntity.FromStreamAsync(stream, cancellationToken);
 
                         var ghostResult = CreateValidationResult(ghostGbx.FilePath, sha256, replayFileEntity: null, ghostFileEntity, ghostGbx.Node, isGhostExtracted: false, errorBag: new ConcurrentDictionary<string, List<string>>());
                         validationRequest.Results.Add(ghostResult);
@@ -164,7 +166,7 @@ public sealed partial class ValidationService : IValidationService
                         mapGbx = await Gbx.ParseAsync<CGameCtnChallenge>(stream, cancellationToken: cancellationToken);
                         mapGbx.FilePath = file.FileName;
 
-                        uploadedMaps.Add(new UploadedMap(mapGbx, sha256, await ToFileEntityAsync(stream, cancellationToken)));
+                        uploadedMaps.Add(new UploadedMap(mapGbx, sha256, await FileEntity.FromStreamAsync(stream, cancellationToken)));
                         break;
                     default:
                         AppendError(errorBag, file.FileName, "File is not one of Replay.Gbx, Ghost.Gbx, or Map.Gbx.");
@@ -209,7 +211,7 @@ public sealed partial class ValidationService : IValidationService
                 continue;
             }
 
-            result.Map = await mapService.GetOrCreateMapAsync(result.GameVersion, result.MapUid, cancellationToken);
+            result.Map = await mapService.GetOrCreateMapAsync(result.GameVersion, result.MapUid, downloadExternally: false, cancellationToken);
         }
 
         validationRequest.Warnings = errorBag.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToArray(), StringComparer.OrdinalIgnoreCase);
@@ -265,8 +267,6 @@ public sealed partial class ValidationService : IValidationService
                     ReplayId = result.Replay == null ? null : result.Replay.Id,
                     GhostId = result.Ghost == null ? null : result.Ghost.Id,
                     IsGhostExtracted = result.IsGhostExtracted,
-                    StartedAt = result.StartedAt,
-                    CompletedAt = result.CompletedAt,
                     GhostUid = result.GhostUid,
                     EventsDuration = result.EventsDuration,
                     RaceTime = result.RaceTime,
@@ -293,6 +293,9 @@ public sealed partial class ValidationService : IValidationService
                         Status = distro.Status,
                         IsValid = distro.IsValid,
                         IsValidExtracted = distro.IsValidExtracted,
+                        StartedAt = distro.StartedAt,
+                        EndedAt = distro.EndedAt,
+                        CompletedAt = distro.CompletedAt,
                         DeclaredResult = distro.DeclaredNbCheckpoints == null || distro.DeclaredScore == null
                             ? null
                             : new ValidationRaceResult
@@ -358,8 +361,6 @@ public sealed partial class ValidationService : IValidationService
                 ReplayId = result.Replay == null ? null : result.Replay.Id,
                 GhostId = result.Ghost == null ? null : result.Ghost.Id,
                 IsGhostExtracted = result.IsGhostExtracted,
-                StartedAt = result.StartedAt,
-                CompletedAt = result.CompletedAt,
                 GhostUid = result.GhostUid,
                 EventsDuration = result.EventsDuration,
                 RaceTime = result.RaceTime,
@@ -386,6 +387,9 @@ public sealed partial class ValidationService : IValidationService
                     Status = distro.Status,
                     IsValid = distro.IsValid,
                     IsValidExtracted = distro.IsValidExtracted,
+                    StartedAt = distro.StartedAt,
+                    EndedAt = distro.EndedAt,
+                    CompletedAt = distro.CompletedAt,
                     DeclaredResult = distro.DeclaredNbCheckpoints == null || distro.DeclaredScore == null
                         ? null
                         : new ValidationRaceResult
@@ -511,18 +515,52 @@ public sealed partial class ValidationService : IValidationService
     public async Task StartDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken)
     {
         result.Status = ValidationStatus.Processing;
+        result.StartedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task FinishDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken)
     {
         result.Status = ValidationStatus.Completed;
+
+        // because FinishDistro can be called twice due to replay+ghost extract then its preferable to not override the time
+        result.CompletedAt ??= DateTimeOffset.UtcNow;
+
         await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task FinishProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken)
     {
-        result.Status = ValidationStatus.Completed;
+        result.Status = result.IsValid.HasValue || result.IsValidExtracted.HasValue
+            ? ValidationStatus.Completed
+            : ValidationStatus.Failed;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task FinishRequestAsync(ValidationRequestEntity validationRequest, CancellationToken cancellationToken)
+    {
+        validationRequest.CompletedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task FillMapsFromExternalSourcesAsync(IEnumerable<ValidationResultEntity> results, CancellationToken cancellationToken)
+    {
+        foreach (var result in results.Where(x => x.Map is null))
+        {
+            if (result.MapUid is null)
+            {
+                logger.LogWarning("Cannot fill map for result {ResultId} because it has no MapUid.", result.Id);
+                continue;
+            }
+
+            var map = await mapService.GetOrCreateMapAsync(result.GameVersion, result.MapUid, downloadExternally: true, cancellationToken);
+
+            if (map is not null)
+            {
+                result.Map = map;
+            }
+        }
+
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -535,7 +573,7 @@ public sealed partial class ValidationService : IValidationService
             await using var ms = new MemoryStream();
             ghost.Save(ms);
 
-            var ghostFileEntity = await ToFileEntityAsync(ms, cancellationToken);
+            var ghostFileEntity = await FileEntity.FromStreamAsync(ms, cancellationToken);
 
             var errorBag = new ConcurrentDictionary<string, List<string>>();
 
@@ -567,7 +605,7 @@ public sealed partial class ValidationService : IValidationService
 
         var inputs = ghost.Inputs ?? ghost.PlayerInputs?.FirstOrDefault()?.Inputs ?? [];
 
-        var serverVersion = GetServerVersion(ghost, errorBag);
+        var serverVersion = GetServerVersion(gameVersion, ghost, errorBag);
 
         var result = new ValidationResultEntity
         {
@@ -645,9 +683,9 @@ public sealed partial class ValidationService : IValidationService
         return result;
     }
 
-    private static string GetServerVersion(CGameCtnGhost ghost, ConcurrentDictionary<string, List<string>> errorBag)
+    private static string GetServerVersion(Api.GameVersion gameVersion, CGameCtnGhost ghost, ConcurrentDictionary<string, List<string>> errorBag)
     {
-        if (string.IsNullOrWhiteSpace(ghost.Validate_ExeVersion))
+        if (gameVersion == Api.GameVersion.TM2 || string.IsNullOrWhiteSpace(ghost.Validate_ExeVersion))
         {
             return "Latest";
         }
@@ -671,24 +709,6 @@ public sealed partial class ValidationService : IValidationService
         }
 
         return "Latest";
-    }
-
-    private static async Task<FileEntity> ToFileEntityAsync(Stream stream, CancellationToken cancellationToken)
-    {
-        stream.Position = 0;
-
-        await using var ms = new MemoryStream();
-
-        await stream.CopyToAsync(ms, cancellationToken);
-
-        ms.Position = 0;
-
-        return new FileEntity
-        {
-            Data = ms.ToArray(),
-            LastModifiedAt = DateTimeOffset.UtcNow,
-            Etag = $"\"{Convert.ToHexStringLower(await MD5.HashDataAsync(ms, cancellationToken))}\""
-        };
     }
 
     private static List<string> AppendError(ConcurrentDictionary<string, List<string>> errorBag, string key, string message)

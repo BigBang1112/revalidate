@@ -1,4 +1,5 @@
-﻿using Revalidate.Converters.Json;
+﻿using ManiaAPI.NadeoAPI;
+using Revalidate.Converters.Json;
 using Revalidate.Services;
 using System.Text.Json.Serialization;
 
@@ -6,12 +7,34 @@ namespace Revalidate.Configuration;
 
 public static class WebConfiguration
 {
+    private const string UserAgent = "Revalidate/1.0 (Remote Replay Validation; Discord=bigbang1112)";
+
     public static void AddWebServices(this IServiceCollection services, IConfiguration config)
     {
-        /*services.AddHttpClient<IGitHubService, GitHubService>(client =>
+        services.AddHttpClient<IMapService, MapService>()
+            .ConfigureHttpClient(client =>
+            {
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+            })
+            .AddStandardResilienceHandler();
+
+        services.AddSingleton(new NadeoAPIHandler
         {
-            client.DefaultRequestHeaders.UserAgent.ParseAdd("Revalidate/1.0 (+https://api.revalidate.gbx.tools; BigBang1112)");
-        }).AddStandardResilienceHandler();*/
+            PendingCredentials = new NadeoAPICredentials(
+                config["NadeoAPI:Login"]!,
+                config["NadeoAPI:Password"]!,
+                AuthorizationMethod.DedicatedServer)
+        });
+
+        services.AddHttpClient<NadeoServices>().ConfigureHttpClient(client =>
+        {
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+        }).AddStandardResilienceHandler();
+
+        services.AddHttpClient<NadeoLiveServices>().ConfigureHttpClient(client =>
+        {
+            client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+        }).AddStandardResilienceHandler();
 
         services.AddAuthentication();
         services.AddAuthorization();

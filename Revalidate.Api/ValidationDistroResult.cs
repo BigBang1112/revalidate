@@ -7,6 +7,9 @@ public sealed class ValidationDistroResult
     public required ValidationStatus Status { get; set; }
     public required bool? IsValid { get; init; }
     public required bool? IsValidExtracted { get; init; }
+    public required DateTimeOffset? StartedAt { get; set; }
+    public required DateTimeOffset? EndedAt { get; set; }
+    public required DateTimeOffset? CompletedAt { get; set; }
     public required string? Desc { get; init; }
     public required ValidationRaceResult? DeclaredResult { get; init; }
     public required ValidationRaceResult? ValidatedResult { get; init; }

@@ -15,8 +15,6 @@ public sealed class ValidationResult
     public required Guid? ReplayId { get; init; }
     public required Guid? GhostId { get; init; }
     public required bool IsGhostExtracted { get; init; }
-    public required DateTimeOffset? StartedAt { get; init; }
-    public required DateTimeOffset? CompletedAt { get; init; }
     public required string? GhostUid { get; set; }
     public required TimeInt32 EventsDuration { get; init; }
     public required TimeInt32? RaceTime { get; init; }

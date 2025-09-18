@@ -10,6 +10,10 @@ public class ValidationDistroResultEntity
 
     public ValidationResultEntity? Result { get; set; }
 
+    public DateTimeOffset? StartedAt { get; set; }
+    public DateTimeOffset? EndedAt { get; set; }
+    public DateTimeOffset? CompletedAt { get; set; }
+
     [StringLength(16)]
     public required string DistroId { get; set; }
 

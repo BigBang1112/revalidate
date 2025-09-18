@@ -78,6 +78,8 @@ public sealed class ValidationJobProcessor : BackgroundService
 
                 await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
             }
+
+            await validationService.FinishRequestAsync(validationRequest, stoppingToken);
         }
     }
 
@@ -150,6 +152,8 @@ public sealed class ValidationJobProcessor : BackgroundService
 
     private async Task ValidateAsync(GameVersion gameVersion, string version, string? titleId, IEnumerable<ValidationResultEntity> results, IValidationService validationService, CancellationToken cancellationToken)
     {
+        await validationService.FillMapsFromExternalSourcesAsync(results, cancellationToken);
+
         var serverType = gameVersion switch
         {
             GameVersion.TM2020 => "TM2020",
@@ -273,10 +277,20 @@ public sealed class ValidationJobProcessor : BackgroundService
         foreach (var result in results)
         {
             // determine global isValid from distros
-            result.IsValid = result.Distros.Any(x => x.IsValid.GetValueOrDefault());
+            result.IsValid = result.Distros.All(x => x.IsValid is null)
+                ? null
+                : result.Distros.Any(x => x.IsValid.GetValueOrDefault());
             result.IsValidExtracted = result.Distros.All(x => x.IsValidExtracted is null)
                 ? null
                 : result.Distros.Any(x => x.IsValidExtracted.GetValueOrDefault());
+
+            foreach (var distro in result.Distros)
+            {
+                if (distro.Status == ValidationStatus.Processing)
+                {
+                    distro.Status = ValidationStatus.Failed;
+                }
+            }
 
             await validationService.FinishProcessingAsync(result, cancellationToken);
         }
@@ -292,7 +306,7 @@ public sealed class ValidationJobProcessor : BackgroundService
     }
 
     private async Task ProcessStdoutAsync(
-        IDictionary<Guid, ValidationResultEntity> resultDict, 
+        Dictionary<Guid, ValidationResultEntity> resultDict, 
         Process process, 
         string distro, 
         IValidationService validationService, 
@@ -330,11 +344,6 @@ public sealed class ValidationJobProcessor : BackgroundService
                     logger.LogWarning("Validation result {ResultId}: Distro result for {Distro} not found.", result.Id, distro);
                     continue;
                 }
-
-                //result.Status = ValidationStatus.Completed;
-                //result.CompletedAt = DateTimeOffset.UtcNow;
-
-                // global isValid can stay and be determined by at least 1 distro being valid
 
                 foreach (var property in validatePathResult.EnumerateObject())
                 {
@@ -450,6 +459,8 @@ public sealed class ValidationJobProcessor : BackgroundService
 
                 try
                 {
+                    // this gets completed twice sometimes due to replay+extracted ghost being separate validation results coming from the server
+                    // maybe could differentiate completion to PartiallyCompleted or something
                     await validationService.FinishDistroProcessingAsync(distroResult, cancellationToken);
                 }
                 finally

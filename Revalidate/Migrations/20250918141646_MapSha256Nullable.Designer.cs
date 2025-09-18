@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Revalidate;
 
@@ -11,9 +12,11 @@ using Revalidate;
 namespace Revalidate.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250918141646_MapSha256Nullable")]
+    partial class MapSha256Nullable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -187,9 +190,6 @@ namespace Revalidate.Migrations
                     b.Property<Guid?>("AccountId")
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<int?>("DeclaredNbCheckpoints")
                         .HasColumnType("int");
 
@@ -211,9 +211,6 @@ namespace Revalidate.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("varchar(16)");
 
-                    b.Property<DateTimeOffset?>("EndedAt")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<string>("InputsResult")
                         .HasMaxLength(1024)
                         .HasColumnType("varchar(1024)");
@@ -230,9 +227,6 @@ namespace Revalidate.Migrations
 
                     b.Property<Guid?>("ResultId")
                         .HasColumnType("char(36)");
-
-                    b.Property<DateTimeOffset?>("StartedAt")
-                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -282,6 +276,9 @@ namespace Revalidate.Migrations
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("CpuKind")
                         .HasColumnType("int");
@@ -357,6 +354,9 @@ namespace Revalidate.Migrations
                     b.Property<byte[]>("Sha256")
                         .IsRequired()
                         .HasColumnType("BINARY(32)");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

@@ -16,7 +16,7 @@ public sealed class MapEntity
     public required string MapUid { get; set; }
 
     [Column(TypeName = "BINARY(32)")]
-    public required byte[] Sha256 { get; set; }
+    public byte[]? Sha256 { get; set; }
 
     public required GameVersion GameVersion { get; set; }
 
@@ -44,4 +44,6 @@ public sealed class MapEntity
     public required byte[]? Thumbnail { get; set; }
 
     public required bool UserUploaded { get; set; }
+
+    public Guid? MapId { get; set; }
 }

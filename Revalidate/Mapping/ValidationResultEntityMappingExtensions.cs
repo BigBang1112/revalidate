@@ -17,8 +17,6 @@ public static class ValidationResultEntityMappingExtensions
         ReplayId = result.Replay?.Id,
         GhostId = result.Ghost?.Id,
         IsGhostExtracted = result.IsGhostExtracted,
-        StartedAt = result.StartedAt,
-        CompletedAt = result.CompletedAt,
         GhostUid = result.GhostUid,
         EventsDuration = result.EventsDuration,
         RaceTime = result.RaceTime,
@@ -45,6 +43,9 @@ public static class ValidationResultEntityMappingExtensions
             Status = distro.Status,
             IsValid = distro.IsValid,
             IsValidExtracted = distro.IsValidExtracted,
+            StartedAt = distro.StartedAt,
+            EndedAt = distro.EndedAt,
+            CompletedAt = distro.CompletedAt,
             DeclaredResult = distro.DeclaredNbCheckpoints == null || distro.DeclaredScore == null
                 ? null
                 : new ValidationRaceResult
