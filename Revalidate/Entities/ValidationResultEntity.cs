@@ -74,6 +74,11 @@ public sealed class ValidationResultEntity
     [StringLength(byte.MaxValue)]
     public required string ServerVersion { get; set; }
 
+    public required ServerHostType ServerHostType { get; set; }
+
+    [StringLength(byte.MaxValue)]
+    public string? Url { get; set; }
+
     public bool? IsValid { get; set; }
     public bool? IsValidExtracted { get; set; }
 

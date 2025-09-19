@@ -33,6 +33,7 @@ public static class ValidationResultEntityMappingExtensions
         TitleChecksum = result.TitleChecksum is null ? null : Convert.ToHexStringLower(result.TitleChecksum),
         Login = result.Login,
         MapUid = result.MapUid,
+        ServerVersion = result.ServerVersion,
         NbInputs = result.NbInputs,
         IsValid = result.IsValid,
         IsValidExtracted = result.IsValidExtracted,

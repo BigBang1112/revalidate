@@ -15,19 +15,31 @@ namespace Revalidate.Services;
 
 public interface IMapService
 {
+    Task<MapEntity?> GetMapAsync(GameVersion gameVersion, string mapUid, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="uploadedMap"></param>
+    /// <param name="cancellationToken"></param>
+    /// <returns></returns>
+    /// <exception cref="MapUidException"></exception>"
     Task<MapEntity> GetOrCreateMapAsync(UploadedMap uploadedMap, CancellationToken cancellationToken);
-    Task<MapEntity?> GetOrCreateMapAsync(GameVersion gameVersion, string mapUid, bool downloadExternally, CancellationToken cancellationToken);
+    Task<MapEntity?> GetOrCreateMapAsync(GameVersion gameVersion, string mapUid, CancellationToken cancellationToken);
+    Task<IEnumerable<LeaderboardRecord>> GetTopRecordsAsync(MapEntity map, CancellationToken cancellationToken);
 }
 
 public sealed partial class MapService : IMapService
 {
     private readonly AppDbContext db;
+    private readonly NadeoServices ns;
     private readonly NadeoLiveServices nls;
     private readonly HttpClient http;
 
-    public MapService(AppDbContext db, NadeoLiveServices nls, HttpClient http)
+    public MapService(AppDbContext db, NadeoServices ns, NadeoLiveServices nls, HttpClient http)
     {
         this.db = db;
+        this.ns = ns;
         this.nls = nls;
         this.http = http;
     }
@@ -77,29 +89,21 @@ public sealed partial class MapService : IMapService
         return map;
     }
 
-    private static void ValidateMapUidOrThrow(string mapUid)
-    {
-        if (string.IsNullOrWhiteSpace(mapUid))
-        {
-            throw new MapUidException("MapUid is null, empty, or whitespace. This is not allowed for validation.");
-        }
-
-        if (!MapUidRegex().IsMatch(mapUid))
-        {
-            throw new MapUidException($"MapUid '{mapUid}' is not valid. It must be 1-32 characters long and can only contain letters, numbers, and, underscores.");
-        }
-    }
-
-    public async Task<MapEntity?> GetOrCreateMapAsync(GameVersion gameVersion, string mapUid, bool downloadExternally, CancellationToken cancellationToken)
+    public async Task<MapEntity?> GetMapAsync(GameVersion gameVersion, string mapUid, CancellationToken cancellationToken)
     {
         // because sha256 is not known, there needs to be a check for a single source of trust via !UserUploaded+MapUid+GameVersion
-        var map = await db.Maps
+        return await db.Maps
             .Where(x => x.GameVersion == gameVersion && x.MapUid == mapUid)
             .OrderBy(x => !x.UserUploaded) // prefer non-user-uploaded maps
             .ThenBy(x => x.Id) // then prefer older maps (arbitrary but stable)
             .FirstOrDefaultAsync(cancellationToken);
+    }
 
-        if (map is not null || !downloadExternally)
+    public async Task<MapEntity?> GetOrCreateMapAsync(GameVersion gameVersion, string mapUid, CancellationToken cancellationToken)
+    {
+        var map = await GetMapAsync(gameVersion, mapUid, cancellationToken);
+
+        if (map is not null)
         {
             return map;
         }
@@ -133,7 +137,7 @@ public sealed partial class MapService : IMapService
                     mapNode.ExportThumbnail(thumbnailStream, SkiaSharp.SKEncodedImageFormat.Jpeg, 95);
 
                     var hashElapsedTime = Stopwatch.GetElapsedTime(hashStartTimestamp);
-                    
+
                     map = new MapEntity
                     {
                         MapUid = tm2020Map.Uid,
@@ -160,6 +164,46 @@ public sealed partial class MapService : IMapService
         }
 
         return map;
+    }
+
+    public async Task<IEnumerable<LeaderboardRecord>> GetTopRecordsAsync(MapEntity map, CancellationToken cancellationToken)
+    {
+        switch (map.GameVersion)
+        {
+            case GameVersion.TM2020:
+                if (map.MapId is null)
+                {
+                    throw new InvalidOperationException("MapId is null, cannot get top records without a valid MapId.");
+                }
+
+                var lb = await nls.GetTopLeaderboardAsync(map.MapUid, length: 100, cancellationToken: cancellationToken);
+
+                var recs = await ns.GetMapRecordsAsync(lb.Top.Top.Select(x => x.AccountId), map.MapId.Value, cancellationToken);
+
+                var detailDict = recs.ToDictionary(x => x.AccountId);
+
+                return lb.Top.Top.Select(record =>
+                {
+                    var detail = detailDict[record.AccountId];
+                    var downloadUrl = detail.Url;
+                    return new LeaderboardRecord(record.Position, record.AccountId, AccountUtils.ToLogin(record.AccountId), detail.RecordScore.Time, detail.Url, detail.FileName);
+                });
+            default:
+                throw new NotImplementedException($"Getting top records for game version {map.GameVersion} is not implemented.");
+        }
+    }
+
+    private static void ValidateMapUidOrThrow(string mapUid)
+    {
+        if (string.IsNullOrWhiteSpace(mapUid))
+        {
+            throw new MapUidException("MapUid is null, empty, or whitespace. This is not allowed for validation.");
+        }
+
+        if (!MapUidRegex().IsMatch(mapUid))
+        {
+            throw new MapUidException($"MapUid '{mapUid}' is not valid. It must be 1-32 characters long and can only contain letters, numbers, and, underscores.");
+        }
     }
 
     [GeneratedRegex(@"^[_0-9a-zA-Z]{1,32}$")]

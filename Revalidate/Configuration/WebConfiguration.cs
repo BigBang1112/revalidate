@@ -1,4 +1,5 @@
 ﻿using ManiaAPI.NadeoAPI;
+using ManiaAPI.NadeoAPI.Extensions.Hosting;
 using Revalidate.Converters.Json;
 using Revalidate.Services;
 using System.Text.Json.Serialization;
@@ -11,27 +12,33 @@ public static class WebConfiguration
 
     public static void AddWebServices(this IServiceCollection services, IConfiguration config)
     {
-        services.AddHttpClient<IMapService, MapService>()
-            .ConfigureHttpClient(client =>
-            {
-                client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
-            })
-            .AddStandardResilienceHandler();
-
-        services.AddSingleton(new NadeoAPIHandler
+        services.AddNadeoAPI(options =>
         {
-            PendingCredentials = new NadeoAPICredentials(
+            options.Credentials = new NadeoAPICredentials(
                 config["NadeoAPI:Login"]!,
                 config["NadeoAPI:Password"]!,
-                AuthorizationMethod.DedicatedServer)
+                AuthorizationMethod.DedicatedServer);
+        }, configureNadeoServices: builder =>
+        {
+            builder.ConfigureHttpClient(client =>
+            {
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+            }).AddStandardResilienceHandler();
+        }, configureNadeoLiveServices: builder =>
+        {
+            builder.ConfigureHttpClient(client =>
+            {
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+            }).AddStandardResilienceHandler();
+        }, configureNadeoMeetServices: builder =>
+        {
+            builder.ConfigureHttpClient(client =>
+            {
+                client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
+            }).AddStandardResilienceHandler();
         });
 
-        services.AddHttpClient<NadeoServices>().ConfigureHttpClient(client =>
-        {
-            client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
-        }).AddStandardResilienceHandler();
-
-        services.AddHttpClient<NadeoLiveServices>().ConfigureHttpClient(client =>
+        services.AddHttpClient<IMapService, MapService>().ConfigureHttpClient(client =>
         {
             client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
         }).AddStandardResilienceHandler();

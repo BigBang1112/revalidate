@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Revalidate.Api;
 using Revalidate.Mapping;
 using Revalidate.Services;
@@ -9,7 +10,7 @@ public static class ValidationEndpoints
 {
     public static void Map(RouteGroupBuilder group)
     {
-        group.WithTags("Validation request").WithDescription("Gay");
+        group.WithTags("Validation request");
 
         group.MapPost("/", Validate)
             .WithSummary("Validate a replay or ghost")
@@ -31,11 +32,26 @@ public static class ValidationEndpoints
     }
 
     private static async Task<Results<Accepted<ValidationRequest>, ValidationProblem>> Validate(
-        IFormFileCollection files,
+        IFormFileCollection? files,
+        [FromForm] GameVersion? game,
+        [FromForm] string? mapUid,
+        [FromForm] bool? revalidate,
+        [FromHeader(Name = "X-SecretKey")] string? secretKey,
         IValidationService validationService,
+        IConfiguration config,
+        IHostEnvironment env,
         CancellationToken cancellationToken)
     {
-        if (files.Count == 0)
+        var specialAccess = env.IsDevelopment() || secretKey == config["SecretKey"];
+
+        // before proper authorization is done
+        if (!specialAccess)
+        {
+            game = null;
+            mapUid = null;
+        }
+
+        if (game is null && mapUid is null && files is null or { Count: 0 })
         {
             return TypedResults.ValidationProblem(new Dictionary<string, string[]>
             {
@@ -43,15 +59,15 @@ public static class ValidationEndpoints
             });
         }
 
-        if (files.Count > 10)
+        if (!specialAccess && files?.Count > 10)
         {
             return TypedResults.ValidationProblem(new Dictionary<string, string[]>
             {
-                { nameof(files), [$"At most 10 files can be provided (a replay/ghost and optionally a map)."] }
+                { nameof(files), ["At most 10 files can be provided (a replay/ghost and optionally a map)."] }
             });
         }
 
-        var result = await validationService.ValidateAsync(files, cancellationToken);
+        var result = await validationService.ValidateAsync(files?.AsEnumerable() ?? [], game, mapUid, cancellationToken);
 
         return result.Match<Results<Accepted<ValidationRequest>, ValidationProblem>>(
             validation => TypedResults.Accepted($"/validations/{validation.Id}", validation.ToDto()),

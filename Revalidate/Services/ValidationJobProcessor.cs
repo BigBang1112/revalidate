@@ -108,48 +108,6 @@ public sealed class ValidationJobProcessor : BackgroundService
         });
     }
 
-    private async Task SetupServerAsync(string serverType, string version, IEnumerable<ValidationResultEntity> results, CancellationToken cancellationToken)
-    {
-        var titles = string.Join(',', results.Select(x => x.TitleId).Distinct());
-
-        var args = string.Join(' ', [
-            "run",
-            "--rm",
-            "-e", $"MSM_SERVER_TYPE={serverType}",
-            "-e", $"MSM_SERVER_VERSION={version}",
-            "-e", "MSM_SERVER_DOWNLOAD_HOST_TM2020=http://files.v04.maniaplanet.com/server",
-            "-e", $"MSM_PREPARE_TITLES={titles}",
-            "-e", "MSM_ONLY_SETUP=True",
-            "-v", $"\"{ArchivesDir}:/app/data/archives\"",
-            "-v", $"\"{VersionsDir}:/app/data/servers\"",
-            "bigbang1112/mania-server-manager",
-        ]);
-
-        using var process = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = "docker",
-                Arguments = args,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-                CreateNoWindow = true,
-            }
-        };
-
-        process.Start();
-
-        // TODO send to request logs
-        string? line;
-        while ((line = await process.StandardOutput.ReadLineAsync(cancellationToken)) is not null)
-        {
-            logger.LogInformation("Validation setup [stdout]: {Line}", line);
-        }
-
-        await process.WaitForExitAsync(cancellationToken);
-    }
-
     private async Task ValidateAsync(GameVersion gameVersion, string version, string? titleId, IEnumerable<ValidationResultEntity> results, IValidationService validationService, CancellationToken cancellationToken)
     {
         await validationService.FillMapsFromExternalSourcesAsync(results, cancellationToken);
@@ -235,7 +193,7 @@ public sealed class ValidationJobProcessor : BackgroundService
                 "--rm",
                 "-e", $"MSM_SERVER_TYPE={serverType}",
                 "-e", $"MSM_SERVER_VERSION={version}",
-                "-e", "MSM_SERVER_DOWNLOAD_HOST_TM2020=http://files.v04.maniaplanet.com/server",
+                "-e", $"MSM_SERVER_DOWNLOAD_HOST_TM2020={GetHostUrl(results.First().ServerHostType)}",
                 "-e", "MSM_VALIDATE_PATH=.",
                 "-e", "MSM_ONLY_STDOUT=True",
                 "-e", $"MSM_TITLE={titleId}",
@@ -296,6 +254,58 @@ public sealed class ValidationJobProcessor : BackgroundService
         }
     }
 
+    private async Task SetupServerAsync(string serverType, string version, IEnumerable<ValidationResultEntity> results, CancellationToken cancellationToken)
+    {
+        var titles = string.Join(',', results.Select(x => x.TitleId).Distinct());
+
+        var args = string.Join(' ', [
+            "run",
+            "--rm",
+            "-e", $"MSM_SERVER_TYPE={serverType}",
+            "-e", $"MSM_SERVER_VERSION={version}",
+            "-e", $"MSM_SERVER_DOWNLOAD_HOST_TM2020={GetHostUrl(results.First().ServerHostType)}",
+            "-e", $"MSM_PREPARE_TITLES={titles}",
+            "-e", "MSM_ONLY_SETUP=True",
+            "-v", $"\"{ArchivesDir}:/app/data/archives\"",
+            "-v", $"\"{VersionsDir}:/app/data/servers\"",
+            "bigbang1112/mania-server-manager",
+        ]);
+
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = "docker",
+                Arguments = args,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            }
+        };
+
+        process.Start();
+
+        // TODO send to request logs
+        string? line;
+        while ((line = await process.StandardOutput.ReadLineAsync(cancellationToken)) is not null)
+        {
+            logger.LogInformation("Validation setup [stdout]: {Line}", line);
+        }
+
+        await process.WaitForExitAsync(cancellationToken);
+    }
+
+    private static string GetHostUrl(ServerHostType serverHostType)
+    {
+        return serverHostType switch
+        {
+            ServerHostType.Ubisoft => "https://nadeo-download.cdn.ubi.com/trackmania",
+            ServerHostType.ManiaPlanet => "http://files.v04.maniaplanet.com/server",
+            _ => throw new InvalidOperationException("Unsupported server host type: " + serverHostType)
+        };
+    }
+
     private async Task ProcessStderrAsync(Process process, CancellationToken cancellationToken)
     {
         string? line;
@@ -344,6 +354,13 @@ public sealed class ValidationJobProcessor : BackgroundService
                     logger.LogWarning("Validation result {ResultId}: Distro result for {Distro} not found.", result.Id, distro);
                     continue;
                 }
+
+                // in case existing distroResult is being updated
+                distroResult.Desc = null; // disappears when ghost is valid
+                distroResult.ValidatedNbCheckpoints = null;
+                distroResult.ValidatedNbRespawns = null;
+                distroResult.ValidatedTime = null;
+                distroResult.ValidatedScore = null;
 
                 foreach (var property in validatePathResult.EnumerateObject())
                 {
