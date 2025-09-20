@@ -1,0 +1,713 @@
+﻿@page "/"
+@rendermode InteractiveWebAssembly
+
+@inject RevalidateClient RevalidateClient
+@inject NavigationManager NavManager
+
+@if (ApiUnavailable)
+{
+	<div class="api-unavailable">
+		<h2>API Unavailable</h2>
+		<p>The Revalidate API is currently unavailable. Please try again later.</p>
+	</div>
+}
+else
+{
+	<div class="tooling">
+		<div class="logo">
+			<h1>
+				<img src="logo.png" width="400" />
+			</h1>
+		</div>
+		<div class="info">
+			@if (Info is not null)
+			{
+				<div>@Info.Message</div>
+				<div class="text-detail">@(Info.Git.Tag ?? Info.Git.Branch) - @Info.Git.Commit<br />@Info.Git.CommitDate.DateTime.ToString("yyyy-MM-dd'T'HH:mm:ss")</div>
+			}
+		</div>
+		<div class="uploads">
+			<ReuUploadArea OnUpload="OnUpload" CssClass="revalidate-upload">Drag & Drop replays, ghosts, and maps</ReuUploadArea>
+			<div class="files-note">3 requests/h, max 10 files, max 8 MB each</div>
+			<ReuButton CssClass="revalidate-button revalidate-button-validate" OnClick="ValidateAsync" disabled="@(!ValidateAvailable || UploadedFiles.Count == 0)">
+				@if (ValidateAvailable)
+				{
+					<span>Validate</span>
+				}
+				else
+				{
+					<ReuLoader Size="30"></ReuLoader>
+				}
+			</ReuButton>
+			<div class="files">
+				@foreach (var file in UploadedFiles)
+				{
+					<ReuButton CssClass="@GetValidityButtonClass(file)" Active="SelectedFile == file" OnClick="() => SelectedFile = file">@file.FileName</ReuButton>
+					<ReuButton OnClick="() => DeleteFile(file)"><img src="delete.svg" width="24"></ReuButton>
+				}
+			</div>
+			<div class="errors">
+				@foreach (var (fileName, errors) in Errors.Concat(Warnings))
+				{
+					<div>
+						<div>@fileName</div>
+						<div class="error-detail">
+							@foreach (var error in errors)
+							{
+								<div>
+									@error
+								</div>
+							}
+						</div>
+					</div>
+				}
+			</div>
+		</div>
+		<div class="results">
+			@if (SelectedFile is not null)
+			{
+				<div class="ghost @GetValidityClass(SelectedFile.Result?.IsValid) @(SelectedFile.SelectedDistro is null ? "active" : "")" @onclick="() => SelectedFile.SelectedDistro = null">
+					<span class="text-major">@SelectedFile.FileName</span>
+				</div>
+
+				@if (SelectedFile.Result is not null)
+				{
+					<div class="distros">
+						@foreach (var distroResult in SelectedFile.Result.Distros.OrderBy(dr => DistroOrder.GetValueOrDefault(dr.DistroId, int.MaxValue)))
+						{
+							var metadata = DistroMetadata.GetValueOrDefault(distroResult.DistroId);
+
+							<div class="distro-result @GetValidityClass(distroResult.IsValid) @(SelectedFile.SelectedDistro == distroResult ? "active" : "")" @onclick="() => ChangeDistroAsync(distroResult)">
+								@if (DistroIcons.TryGetValue(distroResult.DistroId, out var icon))
+								{
+									<div class="img-wrapper">
+										<img src="@icon.img" height="@icon.size" />
+									</div>
+								}
+								<div class="text-major">
+									@(metadata?.Name ?? distroResult.DistroId)
+								</div>
+								@if (!string.IsNullOrEmpty(metadata?.Detail))
+								{
+									<div class="text-detail">
+										@metadata.Detail
+									</div>
+								}
+								<div class="validation-result">
+									@if (distroResult.IsValid.HasValue)
+									{
+										if (distroResult.IsValid.Value)
+										{
+											<span class="conclusion">Valid</span>
+										}
+										else
+										{
+											<span class="text-detail">@distroResult.Desc</span>
+											<span class="conclusion">Invalid</span>
+										}
+									}
+									else
+									{
+										<ReuLoader Size="40"></ReuLoader>
+									}
+								</div>
+							</div>
+						}
+					</div>
+					<div class="details">
+						<div style="display: flex; gap: 5px;">
+							@if (SelectedFile.SelectedDistro is null)
+							{
+								@if (SelectedFile.Section is ResultSection.DistroResult or ResultSection.JsonResult or ResultSection.ValidationLog)
+								{
+									SelectedFile.Section = ResultSection.GeneralResult;
+								}
+
+								<ReuButton CssClass="revalidate-tab-button" Active="SelectedFile.Section == ResultSection.GeneralResult" OnClick="() => SelectedFile.Section = ResultSection.GeneralResult">General result</ReuButton>
+								<ReuButton CssClass="revalidate-tab-button" Active="SelectedFile.Section == ResultSection.Checkpoints" OnClick="() => SelectedFile.Section = ResultSection.Checkpoints">Checkpoints</ReuButton>
+								<ReuButton CssClass="revalidate-tab-button" Active="SelectedFile.Section == ResultSection.Inputs" OnClick="() => ChangeSectionAsync(ResultSection.Inputs)">Inputs</ReuButton>
+
+								@if (false)
+								{
+									<ReuButton CssClass="revalidate-tab-button" Active="SelectedFile.Section == ResultSection.Map" OnClick="() => SelectedFile.Section = ResultSection.Map">Map</ReuButton>
+								}
+							}
+							else
+							{
+								@if (SelectedFile.Section is ResultSection.GeneralResult or ResultSection.Checkpoints or ResultSection.Inputs)
+								{
+									SelectedFile.Section = ResultSection.DistroResult;
+								}
+
+								@if (SelectedFile.Result.Distros.Count > 0)
+								{
+									<ReuButton CssClass="revalidate-tab-button" Active="SelectedFile.Section == ResultSection.DistroResult" OnClick="() => SelectedFile.Section = ResultSection.DistroResult">Distro result</ReuButton>
+								}
+
+								<ReuButton CssClass="revalidate-tab-button" Active="SelectedFile.Section == ResultSection.JsonResult" OnClick="() => ChangeSectionAsync(ResultSection.JsonResult)">JSON result</ReuButton>
+								<ReuButton CssClass="revalidate-tab-button" Active="SelectedFile.Section == ResultSection.ValidationLog" OnClick="() => SelectedFile.Section = ResultSection.ValidationLog">Validation log</ReuButton>
+							}
+						</div>
+						@switch (SelectedFile.Section)
+						{
+							case ResultSection.ValidationLog:
+								@if (SelectedFile.SelectedDistro is not null)
+								{
+									<div class="log">
+										<pre><code>
+											
+										</code></pre>
+									</div>
+								}
+								break;
+							case ResultSection.GeneralResult:
+								<div class="table">
+									@*
+										public required Guid Id { get; init; }
+										public string? Sha256 { get; init; }
+										public string? FileName { get; init; }
+										public required ValidationStatus Status { get; set; }
+										public required GameVersion GameVersion { get; init; }
+										public Guid? ReplayId { get; init; }
+										public Guid? GhostId { get; init; }
+										public required bool IsGhostExtracted { get; init; }
+										public string? GhostUid { get; set; }
+										public required TimeInt32 EventsDuration { get; init; }
+										public TimeInt32? RaceTime { get; init; }
+										public DateTimeOffset? WalltimeStartedAt { get; init; }
+										public DateTimeOffset? WalltimeEndedAt { get; init; }
+										public string? ExeVersion { get; init; }
+										public required uint ExeChecksum { get; init; }
+										public required int OsKind { get; init; }
+										public required int CpuKind { get; init; }
+										public string? RaceSettings { get; init; }
+										public int? ValidationSeed { get; init; }
+										public required bool SteeringWheelSensitivity { get; init; }
+										public string? TitleId { get; init; }
+										public string? TitleChecksum { get; init; }
+										public string? Login { get; init; }
+										public string? MapUid { get; init; }
+										public required string ServerVersion { get; set; }
+										public required int NbInputs { get; init; }
+										public bool? IsValid { get; init; }
+										public bool? IsValidExtracted { get; init; }
+									*@
+									<div>Id:</div>
+									<div>@SelectedFile.Result.Id</div>
+									@if (!string.IsNullOrEmpty(SelectedFile.Result.FileName))
+									{
+										<div>File name:</div>
+										<div>@SelectedFile.Result.FileName</div>
+									}
+									@if (!string.IsNullOrEmpty(SelectedFile.Result.Sha256))
+									{
+										<div>SHA-256:</div>
+										<div>@SelectedFile.Result.Sha256</div>
+									}
+									<div>Status:</div>
+									<div>@SelectedFile.Result.Status</div>
+									<div>Game:</div>
+									<div>@SelectedFile.Result.GameVersion</div>
+									@if (SelectedFile.Result.ReplayId.HasValue)
+									{
+										<div>Replay ID:</div>
+										<div>@SelectedFile.Result.ReplayId.Value</div>
+									}
+									@if (SelectedFile.Result.GhostId.HasValue)
+									{
+										<div>Ghost ID:</div>
+										<div>@SelectedFile.Result.GhostId.Value</div>
+									}
+									<div>Is ghost extracted:</div>
+									<div class="@GetValidityClass(SelectedFile.Result.IsGhostExtracted)">
+										@if (SelectedFile.Result.IsGhostExtracted)
+										{
+											<span>Yes</span>
+										}
+										else
+										{
+											<span>No</span>
+										}
+									</div>
+									@if (!string.IsNullOrEmpty(SelectedFile.Result.GhostUid))
+									{
+										<div>Ghost UID:</div>
+										<div>@SelectedFile.Result.GhostUid</div>
+									}
+									<div>Events duration:</div>
+									<div>@SelectedFile.Result.EventsDuration</div>
+									<div>Race time:</div>
+									<div>@(SelectedFile.Result.RaceTime.ToTmString())</div>
+									@if (SelectedFile.Result.WalltimeStartedAt.HasValue && SelectedFile.Result.WalltimeEndedAt.HasValue)
+									{
+										<div>Walltime duration:</div>
+										<div>@(SelectedFile.Result.WalltimeEndedAt.Value - SelectedFile.Result.WalltimeStartedAt.Value)</div>
+									}
+									@if (SelectedFile.Result.WalltimeStartedAt.HasValue)
+									{
+										<div>Walltime started at:</div>
+										<div>@SelectedFile.Result.WalltimeStartedAt.Value.ToString("yyyy-MM-dd'T'HH:mm:ss")</div>
+									}
+									@if (SelectedFile.Result.WalltimeEndedAt.HasValue)
+									{
+										<div>Walltime ended at:</div>
+										<div>@SelectedFile.Result.WalltimeEndedAt.Value.ToString("yyyy-MM-dd'T'HH:mm:ss")</div>
+									}
+									@if (!string.IsNullOrEmpty(SelectedFile.Result.ExeVersion))
+									{
+										<div>Exe version:</div>
+										<div>@SelectedFile.Result.ExeVersion</div>
+									}
+									<div>Exe checksum:</div>
+									<div>@SelectedFile.Result.ExeChecksum</div>
+									<div>OS kind:</div>
+									<div>@SelectedFile.Result.OsKind</div>
+									<div>CPU kind:</div>
+									<div>@SelectedFile.Result.CpuKind</div>
+									@if (!string.IsNullOrEmpty(SelectedFile.Result.RaceSettings))
+									{
+										<div>Race settings:</div>
+										<div>@SelectedFile.Result.RaceSettings</div>
+									}
+									@if (SelectedFile.Result.ValidationSeed.HasValue)
+									{
+										<div>Validation seed:</div>
+										<div>@SelectedFile.Result.ValidationSeed.Value</div>
+									}
+									<div>Steering wheel sensitivity:</div>
+									<div>@(SelectedFile.Result.SteeringWheelSensitivity ? "Yes" : "No")</div>
+									@if (!string.IsNullOrEmpty(SelectedFile.Result.TitleId))
+									{
+										<div>Title ID:</div>
+										<div>@SelectedFile.Result.TitleId</div>
+									}
+									@if (!string.IsNullOrEmpty(SelectedFile.Result.TitleChecksum))
+									{
+										<div>Title checksum:</div>
+										<div>@SelectedFile.Result.TitleChecksum</div>
+									}
+									@if (!string.IsNullOrEmpty(SelectedFile.Result.Login))
+									{
+										<div>Player login:</div>
+										<div>@SelectedFile.Result.Login</div>
+									}
+									@if (!string.IsNullOrEmpty(SelectedFile.Result.MapUid))
+									{
+										<div>Map UID:</div>
+										<div>@SelectedFile.Result.MapUid</div>
+									}
+									<div>Server version:</div>
+									<div>@SelectedFile.Result.ServerVersion</div>
+									<div>Number of inputs:</div>
+									<div>@SelectedFile.Result.NbInputs</div>
+									<div>Valid:</div>
+									<div class="@GetValidityClass(SelectedFile.Result.IsValid)">
+										@if (SelectedFile.Result.IsValid.HasValue)
+										{
+											@if (SelectedFile.Result.IsValid.Value)
+											{
+												<span>Yes</span>
+											}
+											else
+											{
+												<span>No</span>
+											}
+										}
+										else
+										{
+											<span>Unknown</span>
+										}
+									</div>
+									<div>Valid (ghost only):</div>
+									<div class="@GetValidityClass(SelectedFile.Result.IsValidExtracted)">
+										@if (SelectedFile.Result.IsValidExtracted.HasValue)
+										{
+											@if (SelectedFile.Result.IsValidExtracted.Value)
+											{
+												<span>Yes</span>
+											}
+											else
+											{
+												<span>No</span>
+											}
+										}
+										else
+										{
+											<span>N/A</span>
+										}
+									</div>
+								</div>
+								break;
+							case ResultSection.DistroResult:
+								@if (SelectedFile.SelectedDistro is not null)
+								{
+									<div class="table">
+										<div>Id:</div>
+										<div>@SelectedFile.SelectedDistro.Id</div>
+										<div>Distro:</div>
+										<div>@SelectedFile.SelectedDistro.DistroId</div>
+										<div>Status:</div>
+										<div>@SelectedFile.SelectedDistro.Status</div>
+										<div>Valid:</div>
+										<div class="@GetValidityClass(SelectedFile.SelectedDistro.IsValid)">
+											@if (SelectedFile.SelectedDistro.IsValid.HasValue)
+											{
+												@if (SelectedFile.SelectedDistro.IsValid.Value)
+												{
+													<span>Yes</span>
+												}
+												else
+												{
+													<span>No</span>
+												}
+											}
+											else
+											{
+												<span>Unknown</span>
+											}
+										</div>
+										<div>Valid (ghost only):</div>
+										<div class="@GetValidityClass(SelectedFile.SelectedDistro.IsValidExtracted)">
+											@if (SelectedFile.SelectedDistro.IsValidExtracted.HasValue)
+											{
+												@if (SelectedFile.SelectedDistro.IsValidExtracted.Value)
+												{
+													<span>Yes</span>
+												}
+												else
+												{
+													<span>No</span>
+												}
+											}
+											else
+											{
+												<span>N/A</span>
+											}
+										</div>
+										@if (SelectedFile.SelectedDistro.StartedAt.HasValue && SelectedFile.SelectedDistro.CompletedAt.HasValue)
+										{
+											<div>Validation duration:</div>
+											<div>@(SelectedFile.SelectedDistro.CompletedAt.Value - SelectedFile.SelectedDistro.StartedAt.Value)</div>
+										}
+										else 
+										{
+											if (SelectedFile.SelectedDistro.StartedAt.HasValue)
+											{
+												<div>Validation started at:</div>
+												<div>@SelectedFile.SelectedDistro.StartedAt.Value.ToString("yyyy-MM-dd'T'HH:mm:ss")</div>
+											}
+											@if (SelectedFile.SelectedDistro.CompletedAt.HasValue)
+											{
+												<div>Validation completed at:</div>
+												<div>@SelectedFile.SelectedDistro.CompletedAt.Value.ToString("yyyy-MM-dd'T'HH:mm:ss")</div>
+											}
+										}
+										@if (!string.IsNullOrEmpty(SelectedFile.SelectedDistro.Desc))
+										{
+											<div>Description:</div>
+											<div>@SelectedFile.SelectedDistro.Desc</div>
+										}
+										@if (SelectedFile.SelectedDistro.DeclaredResult is not null)
+										{
+											<div>Declared result:</div>
+											<div>
+												<div>Time: @SelectedFile.SelectedDistro.DeclaredResult.Time</div>
+												<div>Score: @SelectedFile.SelectedDistro.DeclaredResult.Score</div>
+												<div>Checkpoint count: @SelectedFile.SelectedDistro.DeclaredResult.NbCheckpoints</div>
+												<div>Respawn count: @SelectedFile.SelectedDistro.DeclaredResult.NbRespawns</div>
+											</div>
+										}
+										@if (SelectedFile.SelectedDistro.ValidatedResult is not null)
+										{
+											<div>Validated result:</div>
+											<div>
+												<div>Time: @SelectedFile.SelectedDistro.ValidatedResult.Time</div>
+												<div>Score: @SelectedFile.SelectedDistro.ValidatedResult.Score</div>
+												<div>Checkpoint count: @SelectedFile.SelectedDistro.ValidatedResult.NbCheckpoints</div>
+												<div>Respawn count: @SelectedFile.SelectedDistro.ValidatedResult.NbRespawns</div>
+											</div>
+										}
+										@if (SelectedFile.SelectedDistro.AccountId.HasValue)
+										{
+											<div>Account ID:</div>
+											<div>@SelectedFile.SelectedDistro.AccountId.Value</div>
+										}
+										@if (!string.IsNullOrEmpty(SelectedFile.SelectedDistro.InputsResult))
+										{
+											<div>Inputs result:</div>
+											<div>@SelectedFile.SelectedDistro.InputsResult</div>
+										}
+									</div>
+								}
+								break;
+							case ResultSection.JsonResult:
+								@if (SelectedFile.SelectedDistro is not null)
+								{
+									<div class="log">
+										@if (RawJsonResults.TryGetValue((SelectedFile.Result.Id, SelectedFile.SelectedDistro.DistroId), out var element))
+										{
+											<pre><code>
+												@element
+											</code></pre>
+										}
+									</div>
+								}
+								break;
+							case ResultSection.Checkpoints:
+								<div class="checkpoints">
+									@foreach (var (i, cp) in SelectedFile.Result.Checkpoints.Index())
+									{
+										<div class="checkpoint"><code>@(i + 1) @cp.Time</code></div>
+									}
+								</div>
+								break;
+							case ResultSection.Inputs:
+								<div class="log">
+									@if (Inputs.TryGetValue(SelectedFile.Result.Id, out var inputs))
+									{
+										<pre><code>
+											<Virtualize Items="inputs" ItemSize="16" Context="input">
+												<div>
+													@input.Time @input.Name @(input.Value?.ToString() ?? input.Pressed?.ToString() ?? input.ValueF?.ToString())
+												</div>
+											</Virtualize>
+										</code></pre>
+									}
+								</div>
+								break;
+						}
+					</div>
+				}
+			}
+		</div>
+	</div>
+}
+
+@code {
+	static Dictionary<string, (string img, int size)> DistroIcons = new()
+	{
+		{ "noble", ("ubuntu.svg", 60) },
+		{ "plucky", ("ubuntu.svg", 60) },
+		{ "bookworm-slim", ("debian.svg", 60) },
+		{ "alpine", ("alpine.svg", 55) },
+		{ "fedora", ("fedora.svg", 55) },
+	};
+
+	static RevalidateInformation? Info;
+	static Dictionary<string, int> DistroOrder = [];
+	static Dictionary<string, DistroInformation> DistroMetadata = [];
+
+	bool ApiUnavailable;
+	bool ValidateAvailable;
+
+	List<FileUpload> UploadedFiles = [];
+	FileUpload? SelectedFile;
+
+	Dictionary<string, string[]> Errors = [];
+	Dictionary<string, string[]> Warnings = [];
+	Dictionary<(Guid, string), JsonElement> RawJsonResults = [];
+	Dictionary<Guid, ImmutableList<GhostInput>> Inputs = [];
+
+	[SupplyParameterFromQuery(Name = "r")]
+	public string? RequestId { get; set; }
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (!firstRender)
+		{
+			return;
+		}
+
+		try
+		{
+			Info ??= await RevalidateClient.GetInfoAsync();
+
+			DistroOrder = Info.Distros
+				.Select((distro, index) => (distro, index))
+				.ToDictionary(x => x.distro.Id, x => x.index);
+
+			DistroMetadata = Info.Distros
+				.ToDictionary(distro => distro.Id, distro => distro);
+
+			ValidateAvailable = true;
+		}
+		catch (HttpRequestException)
+		{
+			ApiUnavailable = true;
+		}
+
+		if (Guid.TryParse(RequestId, out var requestId))
+		{
+			try
+			{
+				var request = await RevalidateClient.GetRequestByIdAsync(requestId);
+
+				if (request is null)
+				{
+					RequestId = null;
+					NavManager.NavigateTo("/", forceLoad: false);
+				}
+				else
+				{
+					foreach (var result in request.Results)
+					{
+						try
+						{
+							var file = new FileUpload(result.FileName ?? result.Id.ToString(), Data: [], LastModified: null, Gbx: null)
+							{
+								Result = result
+							};
+
+							UploadedFiles.Add(file);
+						}
+						catch
+						{
+							// ignore invalid files
+						}
+					}
+
+					SelectedFile = UploadedFiles.FirstOrDefault();
+				}
+			}
+			catch (RevalidateProblemException ex)
+			{
+				Errors = ex.Problem?.Errors ?? [];
+			}
+		}
+
+		StateHasChanged();
+	}
+
+	private void OnUpload(UploadEventArgs args)
+	{
+		try
+		{
+			using var ms = new MemoryStream(args.Data);
+			var gbx = GBX.NET.Gbx.ParseHeader(ms);
+			var file = new FileUpload(args.FileName, args.Data, args.LastModified, gbx);
+			UploadedFiles.Add(file);
+			SelectedFile = file;
+		}
+		catch
+		{
+			// ignore invalid files
+		}
+	}
+
+	private async Task ValidateAsync()
+	{
+		ValidateAvailable = false;
+		StateHasChanged();
+
+		try
+		{
+			var request = await RevalidateClient.ValidateAsync(UploadedFiles.Select(x => (x.FileName, (Stream)new MemoryStream(x.Data))));
+
+			foreach (var file in UploadedFiles)
+			{
+				// because of this, dont allow same file names yet (or things might be broken because of this)
+				file.Result = request.Results.FirstOrDefault(x => x.FileName == file.FileName);
+			}
+
+			Warnings = request.Warnings ?? [];
+
+			var requestId = request.Id.ToString();
+
+			if (RequestId != requestId)
+			{
+				NavManager.NavigateTo("?r=" + requestId, forceLoad: false);
+				RequestId = requestId;
+			}
+		}
+		catch (RevalidateProblemException ex)
+		{
+			Errors = ex.Problem?.Errors ?? [];
+			Warnings = [];
+		}
+
+		ValidateAvailable = true;
+		StateHasChanged();
+	}
+
+	private void DeleteFile(FileUpload file)
+	{
+		UploadedFiles.Remove(file);
+
+		if (SelectedFile == file)
+		{
+			SelectedFile = UploadedFiles.FirstOrDefault();
+		}
+	}
+
+	private string GetValidityClass(bool? isValid)
+	{
+		return isValid == true ? "valid" : isValid == false ? "invalid" : "";
+	}
+
+	private string GetValidityButtonClass(FileUpload file)
+	{
+		return $"revalidate-button {GetValidityClass(file.Result?.IsValid)}";
+	}
+
+	private async Task ChangeDistroAsync(ValidationDistroResult distro)
+	{
+		if (SelectedFile is null)
+		{
+			return;
+		}
+
+		SelectedFile.SelectedDistro = distro;
+		StateHasChanged();
+
+		await RequestSectionAsync();
+	}
+
+	private async Task ChangeSectionAsync(ResultSection section)
+	{
+		if (SelectedFile is null)
+		{
+			return;
+		}
+
+		SelectedFile.Section = section;
+		StateHasChanged();
+
+		await RequestSectionAsync();
+	}
+
+	private async Task RequestSectionAsync()
+	{
+		switch (SelectedFile?.Section)
+		{
+			case ResultSection.JsonResult:
+				if (SelectedFile.Result is null || SelectedFile.SelectedDistro is null)
+				{
+					return;
+				}
+
+				var distroKey = (SelectedFile.Result.Id, SelectedFile.SelectedDistro.DistroId);
+				if (!RawJsonResults.ContainsKey(distroKey))
+				{
+					var json = await RevalidateClient.GetDistroJsonResultAsync(SelectedFile.Result.Id, SelectedFile.SelectedDistro.DistroId);
+
+					if (json.HasValue)
+					{
+						RawJsonResults[(SelectedFile.Result.Id, SelectedFile.SelectedDistro.DistroId)] = json.Value;
+					}
+				}
+				break;
+			case ResultSection.Inputs:
+				if (SelectedFile.Result is null)
+				{
+					return;
+				}
+
+				if (!Inputs.ContainsKey(SelectedFile.Result.Id))
+				{
+					var inputs = await RevalidateClient.GetResultInputsAsync(SelectedFile.Result.Id);
+					Inputs[SelectedFile.Result.Id] = inputs;
+				}
+				break;
+		}
+	}
+}

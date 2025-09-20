@@ -14,6 +14,8 @@ public static class MiddlewareConfiguration
             app.UseResponseCompression();
         }
 
+        app.UseCors();
+
         app.UseRateLimiter();
 
         app.UseAuthentication();

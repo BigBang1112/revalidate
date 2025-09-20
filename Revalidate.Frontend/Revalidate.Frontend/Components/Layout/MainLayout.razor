@@ -1,20 +1,17 @@
 ﻿@inherits LayoutComponentBase
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
-    </div>
+<ReuNavMenu Brand="revalidate.gbx.tools">
+    <ReuNavItem Name="Validate" Href="" IconType="IconType.Home" NavLinkMatch="NavLinkMatch.All"></ReuNavItem>
+    <ReuNavItem Name="Results" Href="results" IconType="IconType.None"></ReuNavItem>
+    <ReuNavItem Name="About" Href="about" IconType="IconType.Info"></ReuNavItem>
+    <ReuNavItem Name="Docker" Href="https://hub.docker.com/r/bigbang1112/revalidate" IconType="IconType.Docker" IsNavLink="false" IconOnly="true" IconWidth="30" IconHeight="30"></ReuNavItem>
+    <ReuNavItem Name="GitHub" Href="https://github.com/BigBang1112/revalidate" IconType="IconType.GitHub" IsNavLink="false" IconOnly="true" IconWidth="28" IconHeight="28"></ReuNavItem>
+    <ReuNavItem Name="Discord" Href="https://discord.gbx.tools" IconType="IconType.Discord" IsNavLink="false" IconOnly="true" Title="Join the Discord server"></ReuNavItem>
+</ReuNavMenu>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
-
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+<ReuContainer>
+    @Body
+</ReuContainer>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

@@ -15,6 +15,7 @@
     <ProjectReference Include="..\Revalidate.Frontend.Client\Revalidate.Frontend.Client.csproj" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.0-rc.1.25451.107" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.23.0-preview.4" />
+    <PackageReference Include="Reuniverse.Razor" Version="0.0.3" />
   </ItemGroup>
 
 </Project>

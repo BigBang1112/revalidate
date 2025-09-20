@@ -1,12 +1,31 @@
-using Revalidate.Frontend.Client.Pages;
+using Revalidate.Api;
 using Revalidate.Frontend.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents()
+    .AddInteractiveServerComponents().AddHubOptions(options =>
+    {
+        options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10 MB
+    })
     .AddInteractiveWebAssemblyComponents();
+
+builder.Services.AddHttpClient()
+    .ConfigureHttpClientDefaults(httpBuilder =>
+    {
+        httpBuilder.ConfigureHttpClient(client =>
+        {
+            client.BaseAddress = new Uri(builder.Configuration["API:BaseAddress"] ?? throw new InvalidOperationException("API:BaseAddress configuration is missing"));
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("RevalidateFrontend/1.0 (Remote Replay Validation Frontend; Discord=bigbang1112)");
+        });
+    });
+
+builder.Services.AddScoped(provider =>
+{
+    var httpClient = provider.GetRequiredService<HttpClient>();
+    return new RevalidateClient(httpClient);
+});
 
 var app = builder.Build();
 

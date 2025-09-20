@@ -1,24 +1,62 @@
-html, body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+body {
+    background-color: #111;
 }
 
-a, .btn-link {
-    color: #006bb7;
+pre {
+    margin: 0;
 }
 
-.btn-primary {
-    color: #fff;
-    background-color: #1b6ec2;
-    border-color: #1861ac;
+.revalidate-upload {
+    height: 200px;
 }
 
-.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+.revalidate-button {
+    
 }
 
-.content {
-    padding-top: 1.1rem;
+.revalidate-button-validate {
+    background: #1E72CC !important;
+    font-weight: bold;
+    font-size: 150%;
+    height: 50px;
 }
+
+    .revalidate-button-validate:hover {
+        background: #258CFB !important;
+    }
+
+    .revalidate-button-validate:disabled {
+        background: #333 !important;
+    }
+
+.revalidate-button.valid {
+    background: #262 !important;
+}
+
+    .revalidate-button.valid:hover {
+        background: #272 !important;
+    }
+
+    .revalidate-button.valid.active {
+        background: #282 !important;
+    }
+
+.revalidate-button.invalid {
+    background: #622 !important;
+}
+
+    .revalidate-button.invalid:hover {
+        background: #722 !important;
+    }
+
+    .revalidate-button.invalid.active {
+        background: #822 !important;
+    }
+
+.revalidate-tab-button {
+    flex: 1;
+}
+
 
 h1:focus {
     outline: none;
@@ -26,10 +64,6 @@ h1:focus {
 
 .valid.modified:not([type=checkbox]) {
     outline: 1px solid #26b050;
-}
-
-.invalid {
-    outline: 1px solid #e50000;
 }
 
 .validation-message {

@@ -14,7 +14,7 @@ builder.Host.UseDefaultServiceProvider(options =>
 
 // Add services to the container.
 builder.Services.AddDomainServices();
-builder.Services.AddWebServices(builder.Configuration);
+builder.Services.AddWebServices(builder.Configuration, builder.Environment);
 builder.Services.AddDataServices(builder.Configuration);
 builder.Services.AddCacheServices();
 builder.Services.AddTelemetryServices(builder.Configuration, builder.Environment);

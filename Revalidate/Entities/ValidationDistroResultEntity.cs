@@ -9,9 +9,9 @@ public class ValidationDistroResultEntity
     public Guid Id { get; init; } = Guid.CreateVersion7();
 
     public ValidationResultEntity? Result { get; set; }
+    public Guid? ResultId { get; set; }
 
     public DateTimeOffset? StartedAt { get; set; }
-    public DateTimeOffset? EndedAt { get; set; }
     public DateTimeOffset? CompletedAt { get; set; }
 
     [StringLength(16)]

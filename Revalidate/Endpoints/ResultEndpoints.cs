@@ -27,6 +27,10 @@ public static class ResultEndpoints
             .WithSummary("Validation ghost inputs (by ID)")
             .WithDescription("Returns inputs for a validation ghost by ID.");
 
+        group.MapGet("/{resultId:guid}/distros/{distroId}/json", GetJsonByDistroId)
+            .WithSummary("Validation result JSON (by ID)")
+            .WithDescription("Returns raw validation JSON by ID.");
+
         group.MapDelete("/{id:guid}", Delete)
             .WithSummary("Validation result")
             .WithDescription("Deletes a validation result by ID. Returns 404 if it does not exist.")
@@ -78,6 +82,19 @@ public static class ResultEndpoints
         var inputs = await validationService.GetResultGhostInputDtosByIdAsync(id, cancellationToken);
 
         return TypedResults.Ok(inputs);
+    }
+
+    private static async Task<Results<ContentHttpResult, NotFound>> GetJsonByDistroId(
+        Guid resultId,
+        string distroId,
+        IValidationService validationService,
+        CancellationToken cancellationToken)
+    {
+        var json = await validationService.GetDistroResultJsonByIdAsync(resultId, distroId, cancellationToken);
+
+        return json is null
+            ? TypedResults.NotFound()
+            : TypedResults.Content(json, "application/json");
     }
 
     private static async Task<Results<NoContent, NotFound>> Delete(

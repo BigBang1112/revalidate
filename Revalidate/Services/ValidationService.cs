@@ -14,6 +14,7 @@ using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
+using System.Threading;
 using TmEssentials;
 
 namespace Revalidate.Services;
@@ -32,8 +33,9 @@ public interface IValidationService
     Task<DownloadContent?> GetResultReplayDownloadAsync(Guid id, CancellationToken cancellationToken);
     Task<DownloadContent?> GetResultGhostDownloadAsync(Guid id, CancellationToken cancellationToken);
     Task<IEnumerable<GhostInput>> GetResultGhostInputDtosByIdAsync(Guid id, CancellationToken cancellationToken);
+    Task<string?> GetDistroResultJsonByIdAsync(Guid resultId, string distroId, CancellationToken cancellationToken);
     Task<IEnumerable<ValidationResultEntity>> GetAllIncompleteResultsAsync(CancellationToken cancellationToken);
-    Task StartProcessingAsync(ValidationResultEntity result, string[] distros, CancellationToken cancellationToken);
+    Task StartProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken);
     Task StartDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken);
     Task FinishDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken);
     Task FinishProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken);
@@ -127,6 +129,7 @@ public sealed partial class ValidationService : IValidationService
                         .Include(x => x.Ghost)
                         .Include(x => x.Distros)
                         .Include(x => x.Checkpoints)
+                        .AsSplitQuery()
                         .FirstOrDefaultAsync(r => r.Sha256.SequenceEqual(sha256), cancellationToken);
 
                     if (existingResult is not null)
@@ -405,7 +408,6 @@ public sealed partial class ValidationService : IValidationService
                         IsValid = distro.IsValid,
                         IsValidExtracted = distro.IsValidExtracted,
                         StartedAt = distro.StartedAt,
-                        EndedAt = distro.EndedAt,
                         CompletedAt = distro.CompletedAt,
                         DeclaredResult = distro.DeclaredNbCheckpoints == null || distro.DeclaredScore == null
                             ? null
@@ -500,7 +502,6 @@ public sealed partial class ValidationService : IValidationService
                     IsValid = distro.IsValid,
                     IsValidExtracted = distro.IsValidExtracted,
                     StartedAt = distro.StartedAt,
-                    EndedAt = distro.EndedAt,
                     CompletedAt = distro.CompletedAt,
                     DeclaredResult = distro.DeclaredNbCheckpoints == null || distro.DeclaredScore == null
                         ? null
@@ -604,11 +605,19 @@ public sealed partial class ValidationService : IValidationService
             .ToListAsync(cancellationToken);
     }
 
-    public async Task StartProcessingAsync(ValidationResultEntity result, string[] distros, CancellationToken cancellationToken)
+    public async Task<string?> GetDistroResultJsonByIdAsync(Guid resultId, string distroId, CancellationToken cancellationToken)
+    {
+        return await db.ValidationDistroResults
+            .Where(x => x.ResultId == resultId && x.DistroId == distroId)
+            .Select(x => x.RawJsonResult)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public async Task StartProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken)
     {
         result.Status = ValidationStatus.Processing;
 
-        foreach (var distro in distros.Where(d => !result.Distros.Any(dd => dd.DistroId == d)))
+        foreach (var distro in ValidationJobProcessor.Distros.Where(d => !result.Distros.Any(dd => dd.DistroId == d)))
         {
             var distroResult = new ValidationDistroResultEntity
             {
@@ -710,7 +719,7 @@ public sealed partial class ValidationService : IValidationService
     {
         var gameVersion = MapGameVersion(ghost.GameVersion);
 
-        var inputs = ghost.Inputs ?? ghost.PlayerInputs?.FirstOrDefault()?.Inputs ?? [];
+        var inputs = ghost.PlayerInputs?.FirstOrDefault()?.Inputs ?? ghost.Inputs ??  [];
 
         var serverVersion = GetServerVersion(gameVersion, ghost, errorBag, out var hostType);
 
@@ -764,6 +773,18 @@ public sealed partial class ValidationService : IValidationService
             Y = input is MouseAccu mouseY ? mouseY.Y : null,
             ValueF = input is SteerOld steerOld ? steerOld.Value : null,
         }) ?? []);
+
+        foreach (var distro in ValidationJobProcessor.Distros)
+        {
+            var distroResult = new ValidationDistroResultEntity
+            {
+                Result = result,
+                DistroId = distro,
+                Status = ValidationStatus.Pending
+            };
+
+            result.Distros.Add(distroResult);
+        }
 
         var fileIdent = fileName ?? Convert.ToHexStringLower(sha256);
 
@@ -894,7 +915,11 @@ public sealed partial class ValidationService : IValidationService
         Gas => nameof(Gas),
         Horn => nameof(Horn),
         Respawn => nameof(Respawn),
+        RespawnTM2020 => nameof(RespawnTM2020),
+        SecondaryRespawn => nameof(SecondaryRespawn),
+        MouseAccu => nameof(MouseAccu),
         Steer => nameof(Steer),
+        SteerTM2020 => nameof(SteerTM2020),
         SteerLeft => nameof(SteerLeft),
         SteerRight => nameof(SteerRight),
         _ => throw new ArgumentException($"Unknown input type: {input.GetType()}.", nameof(input))

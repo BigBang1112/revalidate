@@ -35,13 +35,15 @@ public sealed partial class MapService : IMapService
     private readonly NadeoServices ns;
     private readonly NadeoLiveServices nls;
     private readonly HttpClient http;
+    private readonly ILogger<MapService> logger;
 
-    public MapService(AppDbContext db, NadeoServices ns, NadeoLiveServices nls, HttpClient http)
+    public MapService(AppDbContext db, NadeoServices ns, NadeoLiveServices nls, HttpClient http, ILogger<MapService> logger)
     {
         this.db = db;
         this.ns = ns;
         this.nls = nls;
         this.http = http;
+        this.logger = logger;
     }
 
     public async Task<MapEntity> GetOrCreateMapAsync(UploadedMap uploadedMap, CancellationToken cancellationToken)
@@ -112,7 +114,17 @@ public sealed partial class MapService : IMapService
         switch (gameVersion)
         {
             case GameVersion.TM2020:
-                var tm2020Map = await nls.GetMapInfoAsync(mapUid, cancellationToken);
+                MapInfoLive tm2020Map;
+
+                try
+                {
+                    tm2020Map = await nls.GetMapInfoAsync(mapUid, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Failed to get TM2020 map info for MapUid {MapUid}", mapUid);
+                    return null;
+                }
 
                 if (tm2020Map is null)
                 {

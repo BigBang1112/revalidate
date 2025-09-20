@@ -42,7 +42,7 @@ public static class ValidationEndpoints
         IHostEnvironment env,
         CancellationToken cancellationToken)
     {
-        var specialAccess = env.IsDevelopment() || secretKey == config["SecretKey"];
+        var specialAccess = env.IsDevelopment() || (!string.IsNullOrWhiteSpace(config["SecretKey"]) && secretKey == config["SecretKey"]);
 
         // before proper authorization is done
         if (!specialAccess)

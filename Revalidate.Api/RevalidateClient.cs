@@ -1,5 +1,8 @@
-﻿using System.Net.Http.Headers;
+﻿using System.Collections.Immutable;
+using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Text.Json;
 
 namespace Revalidate.Api;
 
@@ -22,9 +25,9 @@ public sealed class RevalidateClient
     {
         using var response = await client.PostAsync("/validations", content, cancellationToken);
 
-        response.EnsureSuccessStatusCode();
+        await EnsureSuccessStatusCodeAsync(response, cancellationToken);
 
-        return await response.Content.ReadFromJsonAsync<ValidationRequest>(cancellationToken) ?? throw new InvalidOperationException("Response content is null");
+        return (await response.Content.ReadFromJsonAsync(RevalidateJsonSerializerContext.Default.ValidationRequest, cancellationToken))!;
     }
 
     public async Task<ValidationRequest> ValidateAsync(IEnumerable<string> filePaths, CancellationToken cancellationToken = default)
@@ -95,5 +98,77 @@ public sealed class RevalidateClient
         var fileContent = new StreamContent(stream);
         fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
         content.Add(fileContent, "files", fileName);
+    }
+
+    public async Task<RevalidateInformation> GetInfoAsync(CancellationToken cancellationToken = default)
+    {
+        using var response = await client.GetAsync("", cancellationToken);
+
+        response.EnsureSuccessStatusCode();
+
+        return await response.Content.ReadFromJsonAsync(RevalidateJsonSerializerContext.Default.RevalidateInformation, cancellationToken) ?? throw new InvalidOperationException("Response content is null");
+    }
+
+    public async Task<ValidationRequest?> GetRequestByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        using var response = await client.GetAsync($"/validations/{id}", cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        await EnsureSuccessStatusCodeAsync(response, cancellationToken);
+
+        return await response.Content.ReadFromJsonAsync(RevalidateJsonSerializerContext.Default.ValidationRequest, cancellationToken);
+    }
+
+    public async Task<JsonElement?> GetDistroJsonResultAsync(Guid resultId, string distroId, CancellationToken cancellationToken = default)
+    {
+        using var response = await client.GetAsync($"/results/{resultId}/distros/{distroId}/json", cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        return JsonElement.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
+    }
+
+    public async Task<ImmutableList<GhostInput>> GetResultInputsAsync(Guid resultId, CancellationToken cancellationToken = default)
+    {
+        using var response = await client.GetAsync($"/results/{resultId}/inputs", cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return [];
+        }
+
+        await EnsureSuccessStatusCodeAsync(response, cancellationToken);
+
+        var inputs = await response.Content.ReadFromJsonAsync(RevalidateJsonSerializerContext.Default.ImmutableListGhostInput, cancellationToken);
+
+        return inputs ?? ImmutableList<GhostInput>.Empty;
+    }
+
+    private static async Task EnsureSuccessStatusCodeAsync(HttpResponseMessage response, CancellationToken cancellationToken)
+    {
+        try
+        {
+            response.EnsureSuccessStatusCode();
+        }
+        catch (HttpRequestException ex) when (response.StatusCode == HttpStatusCode.BadRequest)
+        {
+            try
+            {
+                var problemDetails = (await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken))!;
+                throw new RevalidateProblemException(problemDetails, ex);
+            }
+            catch
+            {
+                var content = await response.Content.ReadAsStringAsync(cancellationToken);
+                throw new RevalidateProblemException(content, ex);
+            }
+        }
     }
 }

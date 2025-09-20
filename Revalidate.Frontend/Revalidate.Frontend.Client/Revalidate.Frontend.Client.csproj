@@ -10,8 +10,17 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="GBX.NET" Version="2.2.2" />
     <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.0.0-rc.1.25451.107" />
     <PackageReference Include="Reuniverse.Razor" Version="0.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Revalidate.Api\Revalidate.Api.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Services\" />
   </ItemGroup>
 
 </Project>

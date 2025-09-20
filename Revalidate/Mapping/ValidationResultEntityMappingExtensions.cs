@@ -45,7 +45,6 @@ public static class ValidationResultEntityMappingExtensions
             IsValid = distro.IsValid,
             IsValidExtracted = distro.IsValidExtracted,
             StartedAt = distro.StartedAt,
-            EndedAt = distro.EndedAt,
             CompletedAt = distro.CompletedAt,
             DeclaredResult = distro.DeclaredNbCheckpoints == null || distro.DeclaredScore == null
                 ? null

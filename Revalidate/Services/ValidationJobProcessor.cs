@@ -1,5 +1,6 @@
 ﻿using Revalidate.Api;
 using Revalidate.Entities;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Threading.Channels;
@@ -17,7 +18,7 @@ public sealed class ValidationJobProcessor : BackgroundService
     private static readonly string ArchivesDir = Path.GetFullPath(Path.Combine("data", "archives"));
     private static readonly string VersionsDir = Path.GetFullPath(Path.Combine("data", "versions"));
 
-    private static readonly string[] distros = ["noble", "plucky", "bookworm-slim", "alpine", "fedora"];
+    public static readonly ImmutableList<string> Distros = ["noble", "plucky", "bookworm-slim", "alpine", "fedora"];
 
     private static readonly SemaphoreSlim dbSemaphore = new(1, 1);
 
@@ -51,7 +52,20 @@ public sealed class ValidationJobProcessor : BackgroundService
 
             foreach (var groupedResults in results.GroupBy(x => (x.GameVersion, x.TitleId, x.ServerVersion)))
             {
-                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
+                try
+                {
+                    await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error while validating existing incomplete results for {GameVersion} {ServerVersion} {TitleId}", groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId);
+                    
+                    foreach (var result in groupedResults)
+                    {
+                        result.Status = ValidationStatus.Failed;
+                        await validationService.FinishProcessingAsync(result, stoppingToken);
+                    }
+                }
             }
         }
 
@@ -73,10 +87,23 @@ public sealed class ValidationJobProcessor : BackgroundService
                 if (groupedResults.Key.GameVersion == GameVersion.None)
                 {
                     logger.LogWarning("Skipping some validation results because GameVersion is None!");
-                    return;
+                    continue;
                 }
 
-                await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
+                try
+                {
+                    await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Error while validating request {RequestId} results", validationRequest.Id);
+
+                    foreach (var result in groupedResults)
+                    {
+                        result.Status = ValidationStatus.Failed;
+                        await validationService.FinishProcessingAsync(result, stoppingToken);
+                    }
+                }
             }
 
             await validationService.FinishRequestAsync(validationRequest, stoppingToken);
@@ -85,7 +112,7 @@ public sealed class ValidationJobProcessor : BackgroundService
 
     private static async Task PullLatestManiaServerManagerImagesAsync(CancellationToken cancellationToken)
     {
-        await Parallel.ForEachAsync(distros.Append("latest"), cancellationToken, async (distro, token) =>
+        await Parallel.ForEachAsync(Distros.Add("latest"), cancellationToken, async (distro, token) =>
         {
             using var process = new Process
             {
@@ -146,7 +173,7 @@ public sealed class ValidationJobProcessor : BackgroundService
 
         foreach (var result in results)
         {
-            await validationService.StartProcessingAsync(result, distros, cancellationToken);
+            await validationService.StartProcessingAsync(result, cancellationToken);
 
             if (result.Replay is not null)
             {
@@ -175,7 +202,7 @@ public sealed class ValidationJobProcessor : BackgroundService
         var tasks = new Dictionary<string, Task[]>();
         var processes = new Dictionary<string, Process>();
 
-        foreach (var distro in distros)
+        foreach (var distro in Distros)
         {
             // change targetted results from Pending to Processing (or something else to Processing)
             foreach (var result in results)
@@ -361,6 +388,7 @@ public sealed class ValidationJobProcessor : BackgroundService
                 distroResult.ValidatedNbRespawns = null;
                 distroResult.ValidatedTime = null;
                 distroResult.ValidatedScore = null;
+                distroResult.RawJsonResult = validatePathResult.GetRawText();
 
                 foreach (var property in validatePathResult.EnumerateObject())
                 {
