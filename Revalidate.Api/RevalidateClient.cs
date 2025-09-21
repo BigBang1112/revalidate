@@ -187,16 +187,22 @@ public sealed class RevalidateClient
         }
         catch (HttpRequestException ex) when (response.StatusCode == HttpStatusCode.BadRequest)
         {
+            ProblemDetails problemDetails;
             try
             {
-                var problemDetails = (await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken))!;
-                throw new RevalidateProblemException(problemDetails, ex);
+                problemDetails = (await response.Content.ReadFromJsonAsync<ProblemDetails>(cancellationToken: cancellationToken))!;
             }
             catch
             {
                 var content = await response.Content.ReadAsStringAsync(cancellationToken);
                 throw new RevalidateProblemException(content, ex);
             }
+
+            throw new RevalidateProblemException(problemDetails, ex);
+        }
+        catch (HttpRequestException ex) when (response.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            throw new RevalidateRateLimitException("Rate limit exceeded", ex);
         }
     }
 }

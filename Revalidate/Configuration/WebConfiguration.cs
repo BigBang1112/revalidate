@@ -1,10 +1,12 @@
 ﻿using ManiaAPI.NadeoAPI;
 using ManiaAPI.NadeoAPI.Extensions.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.ResponseCompression;
 using Revalidate.Api;
 using Revalidate.Api.Converters.Json;
 using Revalidate.Services;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 
 namespace Revalidate.Configuration;
 
@@ -50,9 +52,25 @@ public static class WebConfiguration
 
         services.AddOpenApi();
 
+        var rateLimit3PerHour = environment.IsDevelopment() ? 100 : 3;
+
         services.AddRateLimiter(options =>
         {
             options.RejectionStatusCode = 429;
+            options.AddPolicy("3PerHour", httpContext =>
+            {
+                var remoteIp = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+                return RateLimitPartition.GetFixedWindowLimiter(
+                    partitionKey: remoteIp,
+                    partition => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = rateLimit3PerHour,    // Allow 3 requests
+                        Window = TimeSpan.FromHours(1),     // Per 1 hour window
+                        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                        QueueLimit = 0                      // No queuing, reject immediately
+                    });
+            });
         });
 
         services.AddHealthChecks();
@@ -95,6 +113,8 @@ public static class WebConfiguration
         services.AddResponseCompression(options =>
         {
             options.EnableForHttps = true;
+            options.Providers.Add<BrotliCompressionProvider>();
+            options.Providers.Add<GzipCompressionProvider>();
         });
 
         services.Configure<ForwardedHeadersOptions>(options =>

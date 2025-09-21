@@ -154,9 +154,23 @@ public sealed partial class ValidationService : IValidationService
                         replayGbx.FilePath = file.FileName;
 
                         var ghostCount = replayGbx.Node.GetGhosts().Count();
+                        if (ghostCount == 0)
+                        {
+                            AppendError(errorBag, file.FileName, "Replay does not contain a ghost.");
+                            significantValidationErrorCount++;
+                            continue;
+                        }
+
                         if (ghostCount > 1)
                         {
                             AppendError(errorBag, file.FileName, $"Replay contains more than 1 ghost ({ghostCount}). Temporarily, this is not allowed but it will be eventually supported.");
+                            continue;
+                        }
+
+                        if (MapGameVersion(replayGbx.Node.GetGhosts().First().GameVersion) == Api.GameVersion.None)
+                        {
+                            AppendError(errorBag, file.FileName, "Replay contains a ghost from an unsupported game version.");
+                            significantValidationErrorCount++;
                             continue;
                         }
 
@@ -170,6 +184,13 @@ public sealed partial class ValidationService : IValidationService
                     case Gbx<CGameCtnGhost> ghostGbx:
                         ghostGbx = await Gbx.ParseAsync<CGameCtnGhost>(stream, cancellationToken: cancellationToken);
                         ghostGbx.FilePath = file.FileName;
+
+                        if (MapGameVersion(ghostGbx.Node.GameVersion) == Api.GameVersion.None)
+                        {
+                            AppendError(errorBag, file.FileName, "Ghost is from an unsupported game version.");
+                            significantValidationErrorCount++;
+                            continue;
+                        }
 
                         var ghostFileEntity = await FileEntity.FromStreamAsync(stream, cancellationToken);
 
@@ -859,7 +880,7 @@ public sealed partial class ValidationService : IValidationService
         {
             GBX.NET.GameVersion.TM2020 => Api.GameVersion.TM2020,
             GBX.NET.GameVersion.MP4 or GBX.NET.GameVersion.MP4 | GBX.NET.GameVersion.TM2020 => Api.GameVersion.TM2,
-            GBX.NET.GameVersion.TMF => Api.GameVersion.TMF,
+            //GBX.NET.GameVersion.TMF => Api.GameVersion.TMF,
             _ => Api.GameVersion.None
         };
     }

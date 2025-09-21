@@ -39,7 +39,7 @@ public sealed class ValidationResultEntity
 
     public required DateTimeOffset? WalltimeEndedAt { get; set; }
 
-    [StringLength(byte.MaxValue)]
+    [StringLength(short.MaxValue)]
     public required string? ExeVersion { get; set; }
 
     public required uint ExeChecksum { get; set; }

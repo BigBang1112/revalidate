@@ -33,7 +33,7 @@ else
 		<div class="uploads">
 			<ReuUploadArea OnUpload="OnUpload" CssClass="revalidate-upload" MaxFileCount="10" MaxFileSize="8_000_000">Drag & Drop replays, ghosts, and maps</ReuUploadArea>
 			<div class="files-note">3 requests/h, max 10 files, max 8 MB each</div>
-			<ReuButton CssClass="revalidate-button revalidate-button-validate" OnClick="ValidateAsync" disabled="@(!ValidateAvailable || UploadedFiles.Count == 0)">
+			<ReuButton CssClass="revalidate-button revalidate-button-validate" OnClick="ValidateAsync" disabled="@(!ValidateAvailable || UploadedFiles.Count == 0 || RateLimited)">
 				@if (ValidateAvailable)
 				{
 					<span>Validate</span>
@@ -479,6 +479,7 @@ else
 
 	bool ApiUnavailable;
 	bool ValidateAvailable;
+	bool RateLimited;
 
 	List<FileUpload> UploadedFiles = [];
 	FileUpload? SelectedFile;
@@ -561,6 +562,11 @@ else
 
 	private void OnUpload(UploadEventArgs args)
 	{
+		if (UploadedFiles.Count >= 10)
+		{
+			return;
+		}
+
 		try
 		{
 			using var ms = new MemoryStream(args.Data);
@@ -590,6 +596,15 @@ else
 			Errors = ex.Problem?.Errors ?? [];
 			Warnings = [];
 			ValidateAvailable = true;
+			StateHasChanged();
+			return;
+		}
+		catch (RevalidateRateLimitException)
+		{
+			Errors = new() { { "Validation limit reached", [] } };
+			Warnings = [];
+			ValidateAvailable = true;
+			RateLimited = true;
 			StateHasChanged();
 			return;
 		}

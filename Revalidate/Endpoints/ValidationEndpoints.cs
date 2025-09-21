@@ -15,7 +15,8 @@ public static class ValidationEndpoints
         group.MapPost("/", Validate)
             .WithSummary("Validate a replay or ghost")
             .WithDescription("Validates a Replay.Gbx or Ghost.Gbx file. By default, a Replay.Gbx is validated against the map embedded within the replay itself. Optionally, a different Map.Gbx can be provided as the overriden reference. Ghosts are validated against a supplied map, but if no map is provided, the validation falls back to the server's stored map (in some cases, external map download is attempted).")
-            .DisableAntiforgery();
+            .DisableAntiforgery()
+            .RequireRateLimiting("3PerHour");
 
         group.MapGet("/{id:guid}", GetById)
             .WithSummary("Validation request (by ID)")
