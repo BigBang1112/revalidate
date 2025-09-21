@@ -7,7 +7,7 @@ public static class MiddlewareConfiguration
 {
     public static void UseMiddleware(this WebApplication app)
     {
-        app.UseHttpsRedirection();
+        app.UseForwardedHeaders();
 
         if (!app.Environment.IsDevelopment())
         {

@@ -31,7 +31,7 @@ else
 			}
 		</div>
 		<div class="uploads">
-			<ReuUploadArea OnUpload="OnUpload" CssClass="revalidate-upload">Drag & Drop replays, ghosts, and maps</ReuUploadArea>
+			<ReuUploadArea OnUpload="OnUpload" CssClass="revalidate-upload" MaxFileCount="10" MaxFileSize="8_000_000">Drag & Drop replays, ghosts, and maps</ReuUploadArea>
 			<div class="files-note">3 requests/h, max 10 files, max 8 MB each</div>
 			<ReuButton CssClass="revalidate-button revalidate-button-validate" OnClick="ValidateAsync" disabled="@(!ValidateAvailable || UploadedFiles.Count == 0)">
 				@if (ValidateAvailable)

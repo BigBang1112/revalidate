@@ -1,5 +1,6 @@
 ﻿using ManiaAPI.NadeoAPI;
 using ManiaAPI.NadeoAPI.Extensions.Hosting;
+using Microsoft.AspNetCore.HttpOverrides;
 using Revalidate.Api;
 using Revalidate.Api.Converters.Json;
 using Revalidate.Services;
@@ -93,6 +94,15 @@ public static class WebConfiguration
         services.AddResponseCompression(options =>
         {
             options.EnableForHttps = true;
+        });
+
+        services.Configure<ForwardedHeadersOptions>(options =>
+        {
+            options.ForwardedHeaders =
+                ForwardedHeaders.XForwardedFor |
+                ForwardedHeaders.XForwardedProto;
+            options.KnownNetworks.Clear();
+            options.KnownProxies.Clear();
         });
     }
 }
