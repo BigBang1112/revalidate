@@ -261,8 +261,11 @@ public sealed class ValidationJobProcessor : BackgroundService
             _ => throw new InvalidOperationException("Unsupported game version: " + gameVersion)
         };
 
-        var mapsPath = Path.Combine(VersionsDir, $"{serverType}_{version}", "UserData", "Maps");
-        var replaysPath = Path.Combine(VersionsDir, $"{serverType}_{version}", "UserData", "Replays");
+        var archivesDir = config["MSM:ArchivesDirectory"] ?? ArchivesDir;
+        var versionsDir = config["MSM:VersionsDirectory"] ?? VersionsDir;
+
+        var mapsPath = Path.Combine(versionsDir, $"{serverType}_{version}", "UserData", "Maps");
+        var replaysPath = Path.Combine(versionsDir, $"{serverType}_{version}", "UserData", "Replays");
 
         // remove all existing files in Replays
         if (Directory.Exists(replaysPath))
@@ -347,8 +350,8 @@ public sealed class ValidationJobProcessor : BackgroundService
                 "-e", "MSM_VALIDATE_PATH=.",
                 "-e", "MSM_ONLY_STDOUT=True",
                 "-e", $"MSM_TITLE={titleId}",
-                "-v", $"\"{ArchivesDir}:/app/data/archives\"",
-                "-v", $"\"{VersionsDir}:/app/data/servers\"",
+                "-v", $"\"{archivesDir}:/app/data/archives\"",
+                "-v", $"\"{versionsDir}:/app/data/servers\"",
                 config["MSM:AdditionalDockerArguments"],
                 $"bigbang1112/mania-server-manager:{distro}",
             ]);
@@ -426,6 +429,9 @@ public sealed class ValidationJobProcessor : BackgroundService
     {
         var titles = string.Join(',', results.Select(x => x.TitleId).Distinct());
 
+        var archivesDir = config["MSM:ArchivesDirectory"] ?? ArchivesDir;
+        var versionsDir = config["MSM:VersionsDirectory"] ?? VersionsDir;
+
         var args = string.Join(' ', [
             "run",
             "--rm",
@@ -434,8 +440,8 @@ public sealed class ValidationJobProcessor : BackgroundService
             "-e", $"MSM_SERVER_DOWNLOAD_HOST_TM2020={GetHostUrl(results.First().ServerHostType)}",
             "-e", $"MSM_PREPARE_TITLES={titles}",
             "-e", "MSM_ONLY_SETUP=True",
-            "-v", $"\"{ArchivesDir}:/app/data/archives\"",
-            "-v", $"\"{VersionsDir}:/app/data/servers\"",
+            "-v", $"\"{archivesDir}:/app/data/archives\"",
+            "-v", $"\"{versionsDir}:/app/data/servers\"",
             config["MSM:AdditionalDockerArguments"],
             "bigbang1112/mania-server-manager",
         ]);
