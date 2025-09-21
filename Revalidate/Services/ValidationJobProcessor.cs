@@ -261,11 +261,8 @@ public sealed class ValidationJobProcessor : BackgroundService
             _ => throw new InvalidOperationException("Unsupported game version: " + gameVersion)
         };
 
-        var archivesDir = config["MSM:ArchivesDirectory"] ?? ArchivesDir;
-        var versionsDir = config["MSM:VersionsDirectory"] ?? VersionsDir;
-
-        var mapsPath = Path.Combine(versionsDir, $"{serverType}_{version}", "UserData", "Maps");
-        var replaysPath = Path.Combine(versionsDir, $"{serverType}_{version}", "UserData", "Replays");
+        var mapsPath = Path.Combine(VersionsDir, $"{serverType}_{version}", "UserData", "Maps");
+        var replaysPath = Path.Combine(VersionsDir, $"{serverType}_{version}", "UserData", "Replays");
 
         // remove all existing files in Replays
         if (Directory.Exists(replaysPath))
@@ -340,6 +337,9 @@ public sealed class ValidationJobProcessor : BackgroundService
                     _ = NotifyResultUpdatedAsync(requestId.Value, result, cancellationToken);
                 }
             }
+
+            var archivesDir = config["MSM:ArchivesDirectory"] ?? ArchivesDir;
+            var versionsDir = config["MSM:VersionsDirectory"] ?? VersionsDir;
 
             var args = string.Join(' ', [
                 "run",
