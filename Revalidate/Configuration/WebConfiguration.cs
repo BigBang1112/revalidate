@@ -86,7 +86,7 @@ public static class WebConfiguration
                 options.AddDefaultPolicy(policy =>
                 {
                     policy.WithOrigins("https://revalidate.gbx.tools")
-                          .WithMethods("GET", "POST", "DELETE")
+                          .WithMethods("GET", "POST", "DELETE", "OPTIONS")
                           .AllowAnyHeader();
                 });
             });
