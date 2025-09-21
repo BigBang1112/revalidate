@@ -19,10 +19,6 @@
         <PackageReference Include="GBX.NET" Version="2.2.2" />
         <PackageReference Include="GBX.NET.Imaging.SkiaSharp" Version="1.1.2" />
         <PackageReference Include="GBX.NET.LZO" Version="2.1.2" />
-        <PackageReference Include="GitReader.SourceGenerator" Version="0.2.1" OutputItemType="Analyzer" ReferenceOutputAssembly="false">
-          <PrivateAssets>all</PrivateAssets>
-          <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-        </PackageReference>
         <PackageReference Include="ManiaAPI.ManiaPlanetAPI" Version="2.4.0" />
         <PackageReference Include="ManiaAPI.NadeoAPI" Version="2.4.0" />
         <PackageReference Include="ManiaAPI.NadeoAPI.Extensions.Hosting" Version="2.4.0" />
