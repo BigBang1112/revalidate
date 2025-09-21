@@ -14,12 +14,12 @@ WORKDIR /src
 
 # Copy project file and restore as distinct layers
 COPY --link $APPNAME/*.csproj $APPNAME/
-# COPY --link $APPNAME.MySubProject/*.csproj $APPNAME.MySubProject/
+COPY --link $APPNAME.Api/*.csproj $APPNAME.Api/
 RUN dotnet restore -a $TARGETARCH $APPNAME/$APPNAME.csproj
 
 # Copy source code and publish app
 COPY --link $APPNAME/ $APPNAME/
-# COPY --link $APPNAME.MySubProject/ $APPNAME.MySubProject/
+COPY --link $APPNAME.Api/ $APPNAME.Api/
 
 WORKDIR /src/$APPNAME
 RUN dotnet publish -a $TARGETARCH --no-restore -o /app
