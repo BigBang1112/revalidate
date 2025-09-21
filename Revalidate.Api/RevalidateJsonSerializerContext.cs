@@ -7,5 +7,6 @@ namespace Revalidate.Api;
 [JsonSerializable(typeof(ValidationRequest))]
 [JsonSerializable(typeof(RevalidateInformation))]
 [JsonSerializable(typeof(ImmutableList<GhostInput>))]
+[JsonSerializable(typeof(ValidationRequestEvent))]
 [JsonSourceGenerationOptions(Converters = [typeof(JsonStringEnumConverter), typeof(JsonTimeInt32Converter)], PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 public partial class RevalidateJsonSerializerContext : JsonSerializerContext;

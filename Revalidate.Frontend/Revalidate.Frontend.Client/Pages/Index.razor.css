@@ -58,13 +58,14 @@
 .text-detail {
     font-size: 75%;
     opacity: 50%;
+    white-space: pre-line;
 }
 
 .validation-result {
     flex: 1;
     display: flex;
     justify-content: right;
-    margin: 0 20px;
+    margin: 0 15px;
     align-items: center;
     gap: 20px;
 }
@@ -120,7 +121,7 @@
 
 .tooling {
     display: grid;
-    grid-template-columns: 1fr 2fr;
+    grid-template-columns: 1fr minmax(0, 2fr);
     width: 100%;
     gap: 0 20px;
 }
@@ -220,13 +221,9 @@
     font-size: 75%;
 }
 
-    .log pre {
-        white-space: pre-wrap;
-    }
-
 .table {
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     gap: 5px 20px;
     font-size: 80%;
     padding: 10px;

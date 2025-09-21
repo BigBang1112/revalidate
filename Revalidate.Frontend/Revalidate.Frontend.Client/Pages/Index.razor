@@ -1,8 +1,9 @@
 ﻿@page "/"
-@rendermode InteractiveWebAssembly
+@rendermode InteractiveServer
 
 @inject RevalidateClient RevalidateClient
 @inject NavigationManager NavManager
+@inject IJSRuntime JS
 
 @if (ApiUnavailable)
 {
@@ -94,7 +95,11 @@ else
 									</div>
 								}
 								<div class="validation-result">
-									@if (distroResult.IsValid.HasValue)
+									@if (distroResult.Status == ValidationStatus.Processing)
+									{
+										<ReuLoader Size="40"></ReuLoader>
+									}
+									else if (distroResult.IsValid.HasValue)
 									{
 										if (distroResult.IsValid.Value)
 										{
@@ -105,10 +110,6 @@ else
 											<span class="text-detail">@distroResult.Desc</span>
 											<span class="conclusion">Invalid</span>
 										}
-									}
-									else
-									{
-										<ReuLoader Size="40"></ReuLoader>
 									}
 								</div>
 							</div>
@@ -145,7 +146,7 @@ else
 								}
 
 								<ReuButton CssClass="revalidate-tab-button" Active="SelectedFile.Section == ResultSection.JsonResult" OnClick="() => ChangeSectionAsync(ResultSection.JsonResult)">JSON result</ReuButton>
-								<ReuButton CssClass="revalidate-tab-button" Active="SelectedFile.Section == ResultSection.ValidationLog" OnClick="() => SelectedFile.Section = ResultSection.ValidationLog">Validation log</ReuButton>
+								<ReuButton CssClass="revalidate-tab-button" Active="SelectedFile.Section == ResultSection.ValidationLog" OnClick="() => ChangeSectionAsync(ResultSection.ValidationLog)">Validation log</ReuButton>
 							}
 						</div>
 						@switch (SelectedFile.Section)
@@ -153,45 +154,21 @@ else
 							case ResultSection.ValidationLog:
 								@if (SelectedFile.SelectedDistro is not null)
 								{
-									<div class="log">
-										<pre><code>
-											
+									var logs = ValidationLogs.GetValueOrDefault((SelectedFile.Result.Id, SelectedFile.SelectedDistro.DistroId), []);
+
+									<div class="log" @ref="logRef">
+										<pre><code>		
+											<Virtualize Items="logs" ItemSize="16" Context="line">
+												<div>
+													@line
+												</div>
+											</Virtualize>						
 										</code></pre>
 									</div>
 								}
 								break;
 							case ResultSection.GeneralResult:
 								<div class="table">
-									@*
-										public required Guid Id { get; init; }
-										public string? Sha256 { get; init; }
-										public string? FileName { get; init; }
-										public required ValidationStatus Status { get; set; }
-										public required GameVersion GameVersion { get; init; }
-										public Guid? ReplayId { get; init; }
-										public Guid? GhostId { get; init; }
-										public required bool IsGhostExtracted { get; init; }
-										public string? GhostUid { get; set; }
-										public required TimeInt32 EventsDuration { get; init; }
-										public TimeInt32? RaceTime { get; init; }
-										public DateTimeOffset? WalltimeStartedAt { get; init; }
-										public DateTimeOffset? WalltimeEndedAt { get; init; }
-										public string? ExeVersion { get; init; }
-										public required uint ExeChecksum { get; init; }
-										public required int OsKind { get; init; }
-										public required int CpuKind { get; init; }
-										public string? RaceSettings { get; init; }
-										public int? ValidationSeed { get; init; }
-										public required bool SteeringWheelSensitivity { get; init; }
-										public string? TitleId { get; init; }
-										public string? TitleChecksum { get; init; }
-										public string? Login { get; init; }
-										public string? MapUid { get; init; }
-										public required string ServerVersion { get; set; }
-										public required int NbInputs { get; init; }
-										public bool? IsValid { get; init; }
-										public bool? IsValidExtracted { get; init; }
-									*@
 									<div>Id:</div>
 									<div>@SelectedFile.Result.Id</div>
 									@if (!string.IsNullOrEmpty(SelectedFile.Result.FileName))
@@ -484,6 +461,8 @@ else
 }
 
 @code {
+	ElementReference logRef;
+
 	static Dictionary<string, (string img, int size)> DistroIcons = new()
 	{
 		{ "noble", ("ubuntu.svg", 60) },
@@ -506,6 +485,7 @@ else
 	Dictionary<string, string[]> Errors = [];
 	Dictionary<string, string[]> Warnings = [];
 	Dictionary<(Guid, string), JsonElement> RawJsonResults = [];
+	Dictionary<(Guid, string), List<string>> ValidationLogs = [];
 	Dictionary<Guid, ImmutableList<GhostInput>> Inputs = [];
 
 	[SupplyParameterFromQuery(Name = "r")]
@@ -599,30 +579,118 @@ else
 		ValidateAvailable = false;
 		StateHasChanged();
 
+		ValidationRequest request;
 		try
 		{
-			var request = await RevalidateClient.ValidateAsync(UploadedFiles.Select(x => (x.FileName, (Stream)new MemoryStream(x.Data))));
-
-			foreach (var file in UploadedFiles)
-			{
-				// because of this, dont allow same file names yet (or things might be broken because of this)
-				file.Result = request.Results.FirstOrDefault(x => x.FileName == file.FileName);
-			}
-
-			Warnings = request.Warnings ?? [];
-
-			var requestId = request.Id.ToString();
-
-			if (RequestId != requestId)
-			{
-				NavManager.NavigateTo("?r=" + requestId, forceLoad: false);
-				RequestId = requestId;
-			}
+			request = await RevalidateClient.ValidateAsync(UploadedFiles.Select(x => (x.FileName, (Stream)new MemoryStream(x.Data))));
 		}
 		catch (RevalidateProblemException ex)
 		{
 			Errors = ex.Problem?.Errors ?? [];
 			Warnings = [];
+			ValidateAvailable = true;
+			StateHasChanged();
+			return;
+		}
+
+		foreach (var file in UploadedFiles)
+		{
+			// because of this, dont allow same file names yet (or things might be broken because of this)
+			file.Result = request.Results.FirstOrDefault(x => x.FileName == file.FileName);
+		}
+
+		Warnings = request.Warnings ?? [];
+
+		var requestId = request.Id.ToString();
+
+		if (RequestId != requestId)
+		{
+			NavManager.NavigateTo("?r=" + requestId, forceLoad: false);
+			RequestId = requestId;
+		}
+
+		if (request.CompletedAt is null)
+		{
+			try
+			{
+				await foreach (var e in RevalidateClient.GetRequestEventsAsync(request.Id))
+				{
+					if (e.EventType == nameof(ValidationRequestEventType.RequestUpdate))
+					{
+						foreach (var file in UploadedFiles)
+						{
+							var updated = e.Data?.Request?.Results?.FirstOrDefault(r => r.FileName == file.FileName);
+
+							if (updated is not null)
+							{
+								file.Result = updated;
+
+								// update selected distro cuz it is overwritten by the new result
+								if (file.SelectedDistro is not null)
+								{
+									file.SelectedDistro = updated.Distros.FirstOrDefault(d => d.DistroId == file.SelectedDistro.DistroId);
+								}
+
+								StateHasChanged();
+							}
+						}
+
+						if (e.Data?.Request?.CompletedAt.HasValue == true)
+						{
+							break;
+						}
+					}
+					else if (e.EventType == nameof(ValidationRequestEventType.ResultUpdate))
+					{
+						var updated = e.Data?.Result;
+
+						if (updated is not null)
+						{
+							var file = UploadedFiles.FirstOrDefault(f => f.Result?.Id == updated.Id);
+
+							if (file is not null)
+							{
+								file.Result = updated;
+
+								// update selected distro cuz it is overwritten by the new result
+								if (file.SelectedDistro is not null)
+								{
+									file.SelectedDistro = updated.Distros.FirstOrDefault(d => d.DistroId == file.SelectedDistro.DistroId);
+								}
+
+								StateHasChanged();
+							}
+						}
+					}
+					else if (e.EventType == nameof(ValidationRequestEventType.ValidationLog))
+					{
+						if (e.Data is null || e.Data.ResultId is null || e.Data.DistroId is null)
+						{
+							continue;
+						}
+
+						var resultId = e.Data.ResultId.Value;
+						var distroId = e.Data.DistroId;
+						var message = e.Data.Message;
+
+						if (!ValidationLogs.TryGetValue((resultId, distroId), out var logList))
+						{
+							ValidationLogs[(resultId, distroId)] = logList = [];
+						}
+
+						if (!string.IsNullOrWhiteSpace(message))
+						{
+							logList.Add(message);
+							StateHasChanged();
+							await JS.InvokeVoidAsync("scrollToBottom", logRef);
+						}
+					}
+				}
+			}
+			catch
+			{
+				// ignore errors while waiting for completion
+			}
 		}
 
 		ValidateAvailable = true;
@@ -693,6 +761,23 @@ else
 					if (json.HasValue)
 					{
 						RawJsonResults[(SelectedFile.Result.Id, SelectedFile.SelectedDistro.DistroId)] = json.Value;
+					}
+				}
+				break;
+			case ResultSection.ValidationLog:
+				if (SelectedFile.Result is null || SelectedFile.SelectedDistro is null)
+				{
+					return;
+				}
+
+				var distroLogKey = (SelectedFile.Result.Id, SelectedFile.SelectedDistro.DistroId);
+				if (!ValidationLogs.ContainsKey(distroLogKey))
+				{
+					var logs = await RevalidateClient.GetDistroLogsAsync(SelectedFile.Result.Id, SelectedFile.SelectedDistro.DistroId);
+
+					if (logs is not null)
+					{
+						ValidationLogs[(SelectedFile.Result.Id, SelectedFile.SelectedDistro.DistroId)] = logs.Split('\n').ToList();
 					}
 				}
 				break;

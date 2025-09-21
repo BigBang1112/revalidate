@@ -6,15 +6,18 @@ using OneOf;
 using Revalidate.Api;
 using Revalidate.Entities;
 using Revalidate.Exceptions;
+using Revalidate.Mapping;
 using Revalidate.Models;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Globalization;
+using System.Net.ServerSentEvents;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Threading;
+using System.Threading.Channels;
 using TmEssentials;
 
 namespace Revalidate.Services;
@@ -34,6 +37,7 @@ public interface IValidationService
     Task<DownloadContent?> GetResultGhostDownloadAsync(Guid id, CancellationToken cancellationToken);
     Task<IEnumerable<GhostInput>> GetResultGhostInputDtosByIdAsync(Guid id, CancellationToken cancellationToken);
     Task<string?> GetDistroResultJsonByIdAsync(Guid resultId, string distroId, CancellationToken cancellationToken);
+    Task<string?> GetDistroResultLogsByIdAsync(Guid resultId, string distroId, CancellationToken cancellationToken);
     Task<IEnumerable<ValidationResultEntity>> GetAllIncompleteResultsAsync(CancellationToken cancellationToken);
     Task StartProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken);
     Task StartDistroProcessingAsync(ValidationDistroResultEntity result, CancellationToken cancellationToken);
@@ -41,6 +45,7 @@ public interface IValidationService
     Task FinishProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken);
     Task FinishRequestAsync(ValidationRequestEntity validationRequest, CancellationToken stoppingToken);
     Task FillMapsFromExternalSourcesAsync(IEnumerable<ValidationResultEntity> results, CancellationToken cancellationToken);
+    IAsyncEnumerable<SseItem<ValidationRequestEvent>> EnumerateRequestEventsAsync(Guid id, CancellationToken cancellationToken);
 }
 
 public sealed partial class ValidationService : IValidationService
@@ -324,6 +329,7 @@ public sealed partial class ValidationService : IValidationService
         }
         else if (significantValidationErrorCount > 0 && significantValidationErrorCount == validationRequest.Results.Count)
         {
+            await FinishRequestAsync(validationRequest, cancellationToken);
             return new ValidationFailed(errorBag.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.ToArray(), StringComparer.OrdinalIgnoreCase));
         }
 
@@ -335,6 +341,10 @@ public sealed partial class ValidationService : IValidationService
         if (validationRequest.Results.Any(x => x.Status == ValidationStatus.Pending))
         {
             await validationJobProcessor.EnqueueAsync(validationRequest.Id, cancellationToken);
+        }
+        else
+        {
+            await FinishRequestAsync(validationRequest, cancellationToken);
         }
 
         return validationRequest;
@@ -354,6 +364,8 @@ public sealed partial class ValidationService : IValidationService
                 .ThenInclude(x => x.Ghost)
             .Include(x => x.Results)
                 .ThenInclude(x => x.Distros)
+            .Include(x => x.Results)
+                .ThenInclude(x => x.Checkpoints)
             .Include(x => x.Results)
                 .ThenInclude(x => x.Map)
                     .ThenInclude(x => x!.File)
@@ -613,6 +625,14 @@ public sealed partial class ValidationService : IValidationService
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<string?> GetDistroResultLogsByIdAsync(Guid resultId, string distroId, CancellationToken cancellationToken)
+    {
+        return await db.ValidationDistroResults
+            .Where(x => x.ResultId == resultId && x.DistroId == distroId)
+            .Select(x => x.Log!.Log)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
     public async Task StartProcessingAsync(ValidationResultEntity result, CancellationToken cancellationToken)
     {
         result.Status = ValidationStatus.Processing;
@@ -683,6 +703,25 @@ public sealed partial class ValidationService : IValidationService
         }
 
         await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async IAsyncEnumerable<SseItem<ValidationRequestEvent>> EnumerateRequestEventsAsync(Guid id, [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        var request = await GetRequestDtoByIdAsync(id, cancellationToken);
+
+        if (request is null)
+        {
+            yield break;
+        }
+
+        yield return new SseItem<ValidationRequestEvent>(new ValidationRequestEvent { Request = request }, nameof(ValidationRequestEventType.RequestUpdate));
+
+        var reader = validationJobProcessor.SubscribeToRequest(id, cancellationToken);
+
+        await foreach (var (type, evt) in reader.ReadAllAsync(cancellationToken))
+        {
+            yield return new SseItem<ValidationRequestEvent>(evt, type.ToString());
+        }
     }
 
     private static async IAsyncEnumerable<ValidationResultEntity> EnumerateReplayResultsAsync(Gbx<CGameCtnReplayRecord> replayGbx, byte[] sha256, FileEntity fileEntity, [EnumeratorCancellation] CancellationToken cancellationToken)
@@ -922,6 +961,7 @@ public sealed partial class ValidationService : IValidationService
         SteerTM2020 => nameof(SteerTM2020),
         SteerLeft => nameof(SteerLeft),
         SteerRight => nameof(SteerRight),
+        ActionSlot => nameof(ActionSlot),
         _ => throw new ArgumentException($"Unknown input type: {input.GetType()}.", nameof(input))
     };
 

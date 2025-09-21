@@ -42,4 +42,6 @@ public class ValidationDistroResultEntity
 
     [StringLength(short.MaxValue)]
     public string? RawJsonResult { get; set; }
+
+    public ValidationLogEntity? Log { get; set; }
 }

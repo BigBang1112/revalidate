@@ -12,6 +12,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ValidationRequestEntity> ValidationRequests { get; set; }
     public DbSet<ValidationResultEntity> ValidationResults { get; set; }
     public DbSet<ValidationDistroResultEntity> ValidationDistroResults { get; set; }
+    public DbSet<ValidationLogEntity> ValidationLogs { get; set; }
     public DbSet<FileEntity> Files { get; set; }
     public DbSet<GhostInputEntity> GhostInputs { get; set; }
     public DbSet<GhostCheckpointEntity> GhostCheckpoints { get; set; }

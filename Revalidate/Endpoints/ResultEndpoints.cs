@@ -19,9 +19,9 @@ public static class ResultEndpoints
             .WithSummary("Validation result (by ID)")
             .WithDescription("Returns the validation result by ID.");
 
-        group.MapGet("/{id:guid}/events", GetEventsById)
-            .WithSummary("Validation result events (by ID)")
-            .WithDescription("Returns events for a validation result by ID.");
+        //group.MapGet("/{id:guid}/events", GetEventsById)
+        //    .WithSummary("Validation result events (by ID)")
+        //    .WithDescription("Returns events for a validation result by ID.");
 
         group.MapGet("/{id:guid}/inputs", GetInputsById)
             .WithSummary("Validation ghost inputs (by ID)")
@@ -30,6 +30,10 @@ public static class ResultEndpoints
         group.MapGet("/{resultId:guid}/distros/{distroId}/json", GetJsonByDistroId)
             .WithSummary("Validation result JSON (by ID)")
             .WithDescription("Returns raw validation JSON by ID.");
+
+        group.MapGet("/{resultId:guid}/distros/{distroId}/logs", GetLogsByDistroId)
+            .WithSummary("Validation result logs (by ID)")
+            .WithDescription("Returns raw validation logs by ID.");
 
         group.MapDelete("/{id:guid}", Delete)
             .WithSummary("Validation result")
@@ -65,14 +69,13 @@ public static class ResultEndpoints
             : TypedResults.Ok(request);
     }
 
-    private static async Task<Results<ServerSentEventsResult<ValidationResult>, NotFound>> GetEventsById(
+    /*private static Results<ServerSentEventsResult<ValidationRequestEvent>, NotFound> GetEventsById(
         Guid id,
-        IValidationService validationService,
+        ValidationJobProcessor validationJobProcessor,
         CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
-        //return TypedResults.ServerSentEvents
-    }
+        return TypedResults.ServerSentEvents(validationJobProcessor.EnumerateRequestEventsAsync(id, cancellationToken));
+    }*/
 
     private static async Task<Ok<IEnumerable<GhostInput>>> GetInputsById(
         Guid id,
@@ -95,6 +98,19 @@ public static class ResultEndpoints
         return json is null
             ? TypedResults.NotFound()
             : TypedResults.Content(json, "application/json");
+    }
+
+    private static async Task<Results<ContentHttpResult, NotFound>> GetLogsByDistroId(
+        Guid resultId,
+        string distroId,
+        IValidationService validationService,
+        CancellationToken cancellationToken)
+    {
+        var logs = await validationService.GetDistroResultLogsByIdAsync(resultId, distroId, cancellationToken);
+
+        return logs is null
+            ? TypedResults.NotFound()
+            : TypedResults.Content(logs, "text/plain");
     }
 
     private static async Task<Results<NoContent, NotFound>> Delete(

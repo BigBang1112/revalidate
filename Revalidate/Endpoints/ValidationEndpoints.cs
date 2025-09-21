@@ -86,13 +86,12 @@ public static class ValidationEndpoints
             : TypedResults.Ok(request);
     }
 
-    private static async Task<Results<ServerSentEventsResult<ValidationRequest>, NotFound>> GetEventsById(
+    private static async Task<Results<ServerSentEventsResult<ValidationRequestEvent>, NotFound>> GetEventsById(
         Guid id,
         IValidationService validationService,
         CancellationToken cancellationToken)
     {
-        throw new NotImplementedException();
-        //return TypedResults.ServerSentEvents
+        return TypedResults.ServerSentEvents(validationService.EnumerateRequestEventsAsync(id, cancellationToken));
     }
 
     private static async Task<Results<NoContent, NotFound>> Delete(

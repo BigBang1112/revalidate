@@ -1,7 +1,10 @@
 ﻿using System.Collections.Immutable;
+using System.IO;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
+using System.Net.ServerSentEvents;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace Revalidate.Api;
@@ -135,6 +138,19 @@ public sealed class RevalidateClient
         return JsonElement.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
     }
 
+    public async Task<string?> GetDistroLogsAsync(Guid resultId, string distroId, CancellationToken cancellationToken = default)
+    {
+        using var response = await client.GetAsync($"/results/{resultId}/distros/{distroId}/logs", cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return null;
+        }
+
+        return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
+
     public async Task<ImmutableList<GhostInput>> GetResultInputsAsync(Guid resultId, CancellationToken cancellationToken = default)
     {
         using var response = await client.GetAsync($"/results/{resultId}/inputs", cancellationToken);
@@ -149,6 +165,18 @@ public sealed class RevalidateClient
         var inputs = await response.Content.ReadFromJsonAsync(RevalidateJsonSerializerContext.Default.ImmutableListGhostInput, cancellationToken);
 
         return inputs ?? ImmutableList<GhostInput>.Empty;
+    }
+
+    public async IAsyncEnumerable<SseItem<ValidationRequestEvent?>> GetRequestEventsAsync(Guid requestId, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var response = await client.GetStreamAsync($"/validations/{requestId}/events", cancellationToken);
+
+        var sseParser = SseParser.Create(response, (eventType, bytes) => JsonSerializer.Deserialize(bytes, RevalidateJsonSerializerContext.Default.ValidationRequestEvent));
+
+        await foreach (var e in sseParser.EnumerateAsync(cancellationToken))
+        {
+            yield return e;
+        }
     }
 
     private static async Task EnsureSuccessStatusCodeAsync(HttpResponseMessage response, CancellationToken cancellationToken)

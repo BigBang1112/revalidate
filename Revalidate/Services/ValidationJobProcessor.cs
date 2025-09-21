@@ -1,7 +1,11 @@
 ﻿using Revalidate.Api;
 using Revalidate.Entities;
+using Revalidate.Mapping;
+using Serilog.Events;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Channels;
 using TmEssentials;
@@ -15,6 +19,8 @@ public sealed class ValidationJobProcessor : BackgroundService
 
     private readonly Channel<Guid> channel;
 
+    private readonly ConcurrentDictionary<Guid, (Guid RequestId, Channel<(ValidationRequestEventType Type, ValidationRequestEvent Event)> Channel)> requestEventSubscribers = new();
+
     private static readonly string ArchivesDir = Path.GetFullPath(Path.Combine("data", "archives"));
     private static readonly string VersionsDir = Path.GetFullPath(Path.Combine("data", "versions"));
 
@@ -27,7 +33,7 @@ public sealed class ValidationJobProcessor : BackgroundService
         this.scopeFactory = scopeFactory;
         this.logger = logger;
 
-        var options = new BoundedChannelOptions(10)
+        var options = new BoundedChannelOptions(50)
         {
             FullMode = BoundedChannelFullMode.Wait
         };
@@ -38,6 +44,26 @@ public sealed class ValidationJobProcessor : BackgroundService
     public async ValueTask EnqueueAsync(Guid validationRequestId, CancellationToken cancellationToken)
     {
         await channel.Writer.WriteAsync(validationRequestId, cancellationToken);
+    }
+
+    public ChannelReader<(ValidationRequestEventType Type, ValidationRequestEvent Event)> SubscribeToRequest(Guid requestId, CancellationToken cancellationToken)
+    {
+        var channel = Channel.CreateUnbounded<(ValidationRequestEventType, ValidationRequestEvent)>(
+            new UnboundedChannelOptions { SingleReader = true, SingleWriter = false });
+
+        var subscriberId = Guid.NewGuid();
+        requestEventSubscribers[subscriberId] = (requestId, channel);
+
+        // Cleanup when client disconnects
+        cancellationToken.Register(() =>
+        {
+            if (requestEventSubscribers.TryRemove(requestId, out var ch))
+            {
+                ch.Channel.Writer.TryComplete();
+            }
+        });
+
+        return channel.Reader;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -54,7 +80,7 @@ public sealed class ValidationJobProcessor : BackgroundService
             {
                 try
                 {
-                    await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
+                    await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, requestId: null, groupedResults.ToImmutableList(), validationService, stoppingToken);
                 }
                 catch (Exception ex)
                 {
@@ -82,6 +108,9 @@ public sealed class ValidationJobProcessor : BackgroundService
                 continue;
             }
 
+            // Just to give a headsup that the request is about to start
+            await NotifyRequestUpdatedAsync(validationRequest, stoppingToken);
+
             foreach (var groupedResults in validationRequest.Results.Where(x => x.Status == ValidationStatus.Pending).GroupBy(x => (x.GameVersion, x.TitleId, x.ServerVersion)))
             {
                 if (groupedResults.Key.GameVersion == GameVersion.None)
@@ -92,7 +121,7 @@ public sealed class ValidationJobProcessor : BackgroundService
 
                 try
                 {
-                    await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, groupedResults, validationService, stoppingToken);
+                    await ValidateAsync(groupedResults.Key.GameVersion, groupedResults.Key.ServerVersion, groupedResults.Key.TitleId, requestId, groupedResults.ToImmutableList(), validationService, stoppingToken);
                 }
                 catch (Exception ex)
                 {
@@ -107,6 +136,91 @@ public sealed class ValidationJobProcessor : BackgroundService
             }
 
             await validationService.FinishRequestAsync(validationRequest, stoppingToken);
+            await NotifyRequestUpdatedAsync(validationRequest, stoppingToken);
+        }
+
+        foreach (var subscriber in requestEventSubscribers.Values)
+        {
+            subscriber.Channel.Writer.TryComplete();
+        }
+    }
+
+    private async Task NotifyRequestUpdatedAsync(ValidationRequestEntity validationRequest, CancellationToken cancellationToken)
+    {
+        var requestDto = validationRequest.ToDto();
+
+        foreach (var (listeningToRequestId, subscriber) in requestEventSubscribers.Values)
+        {
+            if (listeningToRequestId == validationRequest.Id)
+            {
+                await subscriber.Writer.WriteAsync((ValidationRequestEventType.RequestUpdate, new ValidationRequestEvent
+                {
+                    Request = requestDto
+                }), cancellationToken);
+            }
+        }
+    }
+
+    private async Task NotifyResultUpdatedAsync(Guid requestId, ValidationResultEntity validationResult, CancellationToken cancellationToken)
+    {
+        var resultDto = validationResult.ToDto();
+
+        foreach (var (listeningToRequestId, subscriber) in requestEventSubscribers.Values)
+        {
+            if (listeningToRequestId == requestId)
+            {
+                await subscriber.Writer.WriteAsync((ValidationRequestEventType.ResultUpdate, new ValidationRequestEvent
+                {
+                    Result = resultDto
+                }), cancellationToken);
+            }
+        }
+    }
+
+    private async Task NotifySetupLogAsync(Guid requestId, Guid resultId, string message, CancellationToken cancellationToken)
+    {
+        foreach (var (listeningToRequestId, subscriber) in requestEventSubscribers.Values)
+        {
+            if (listeningToRequestId == requestId)
+            {
+                await subscriber.Writer.WriteAsync((ValidationRequestEventType.SetupLog, new ValidationRequestEvent
+                {
+                    ResultId = resultId,
+                    Message = message
+                }), cancellationToken);
+            }
+        }
+    }
+
+    private async Task NotifyValidationLogAsync(Guid requestId, Guid resultId, string distroId, string message, CancellationToken cancellationToken)
+    {
+        foreach (var (listeningToRequestId, subscriber) in requestEventSubscribers.Values)
+        {
+            if (listeningToRequestId == requestId)
+            {
+                await subscriber.Writer.WriteAsync((ValidationRequestEventType.ValidationLog, new ValidationRequestEvent
+                {
+                    ResultId = resultId,
+                    DistroId = distroId,
+                    Message = message
+                }), cancellationToken);
+            }
+        }
+    }
+
+    private async Task NotifyValidationOutputAsync(Guid requestId, Guid resultId, string distroId, string json, CancellationToken cancellationToken)
+    {
+        foreach (var (listeningToRequestId, subscriber) in requestEventSubscribers.Values)
+        {
+            if (listeningToRequestId == requestId)
+            {
+                await subscriber.Writer.WriteAsync((ValidationRequestEventType.ValidationOutput, new ValidationRequestEvent
+                {
+                    ResultId = resultId,
+                    DistroId = distroId,
+                    Json = json
+                }), cancellationToken);
+            }
         }
     }
 
@@ -135,7 +249,7 @@ public sealed class ValidationJobProcessor : BackgroundService
         });
     }
 
-    private async Task ValidateAsync(GameVersion gameVersion, string version, string? titleId, IEnumerable<ValidationResultEntity> results, IValidationService validationService, CancellationToken cancellationToken)
+    private async Task ValidateAsync(GameVersion gameVersion, string version, string? titleId, Guid? requestId, ImmutableList<ValidationResultEntity> results, IValidationService validationService, CancellationToken cancellationToken)
     {
         await validationService.FillMapsFromExternalSourcesAsync(results, cancellationToken);
 
@@ -195,12 +309,13 @@ public sealed class ValidationJobProcessor : BackgroundService
             }
         }
 
-        await SetupServerAsync(serverType, version, results, cancellationToken);
+        await SetupServerAsync(serverType, version, requestId, results, cancellationToken);
 
         var resultDict = results.ToDictionary(x => x.Id);
 
         var tasks = new Dictionary<string, Task[]>();
         var processes = new Dictionary<string, Process>();
+        var logs = new Dictionary<string, StringBuilder>();
 
         foreach (var distro in Distros)
         {
@@ -209,9 +324,16 @@ public sealed class ValidationJobProcessor : BackgroundService
             {
                 var distroResult = result.Distros.FirstOrDefault(x => x.DistroId == distro);
 
-                if (distroResult is not null)
+                if (distroResult is null)
                 {
-                    await validationService.StartDistroProcessingAsync(distroResult, cancellationToken);
+                    continue;
+                }
+
+                await validationService.StartDistroProcessingAsync(distroResult, cancellationToken);
+
+                if (requestId.HasValue)
+                {
+                    _ = NotifyResultUpdatedAsync(requestId.Value, result, cancellationToken);
                 }
             }
 
@@ -244,10 +366,13 @@ public sealed class ValidationJobProcessor : BackgroundService
 
             process.Start();
 
+            var sbLogs = new StringBuilder();
+            logs[distro] = sbLogs;
+
             processes[distro] = process;
             tasks[distro] = [
-                ProcessStdoutAsync(resultDict, process, distro, validationService, cancellationToken), 
-                ProcessStderrAsync(process, cancellationToken),
+                ProcessStdoutAsync(requestId, resultDict, process, distro, validationService, cancellationToken), 
+                ProcessStderrAsync(requestId, results, distro, process, sbLogs, cancellationToken),
                 process.WaitForExitAsync(cancellationToken)
             ];
         }
@@ -258,6 +383,10 @@ public sealed class ValidationJobProcessor : BackgroundService
         {
             process.Dispose();
         }
+
+        var logEntities = logs.ToDictionary(
+            x => x.Key, 
+            x => new ValidationLogEntity { Log = x.Value.ToString() });
 
         foreach (var result in results)
         {
@@ -275,13 +404,23 @@ public sealed class ValidationJobProcessor : BackgroundService
                 {
                     distro.Status = ValidationStatus.Failed;
                 }
+
+                if (logEntities.TryGetValue(distro.DistroId, out var logEntity))
+                {
+                    distro.Log = logEntity;
+                }
             }
 
             await validationService.FinishProcessingAsync(result, cancellationToken);
+
+            if (requestId.HasValue)
+            {
+                await NotifyResultUpdatedAsync(requestId.Value, result, cancellationToken);
+            }
         }
     }
 
-    private async Task SetupServerAsync(string serverType, string version, IEnumerable<ValidationResultEntity> results, CancellationToken cancellationToken)
+    private async Task SetupServerAsync(string serverType, string version, Guid? requestId, IEnumerable<ValidationResultEntity> results, CancellationToken cancellationToken)
     {
         var titles = string.Join(',', results.Select(x => x.TitleId).Distinct());
 
@@ -318,6 +457,13 @@ public sealed class ValidationJobProcessor : BackgroundService
         while ((line = await process.StandardOutput.ReadLineAsync(cancellationToken)) is not null)
         {
             logger.LogInformation("Validation setup [stdout]: {Line}", line);
+            if (requestId.HasValue)
+            {
+                foreach (var result in results)
+                {
+                    _ = NotifySetupLogAsync(requestId.Value, result.Id, line, cancellationToken);
+                }
+            }
         }
 
         await process.WaitForExitAsync(cancellationToken);
@@ -333,16 +479,29 @@ public sealed class ValidationJobProcessor : BackgroundService
         };
     }
 
-    private async Task ProcessStderrAsync(Process process, CancellationToken cancellationToken)
+    private async Task ProcessStderrAsync(Guid? requestId, ImmutableList<ValidationResultEntity> results, string distroId, Process process, StringBuilder sbLogs, CancellationToken cancellationToken)
     {
         string? line;
         while ((line = await process.StandardError.ReadLineAsync(cancellationToken)) is not null)
         {
             logger.LogInformation("Validation [stderr]: {Line}", line);
+
+            foreach (var result in results)
+            {
+                if (requestId.HasValue)
+                {
+                    _ = NotifyValidationLogAsync(requestId.Value, result.Id, distroId, line, cancellationToken);
+                }
+
+                sbLogs.AppendLine(line);
+            }
         }
     }
 
+    private static readonly JsonSerializerOptions ValidatePathOutputJsonOptions = new() { AllowTrailingCommas = true };
+
     private async Task ProcessStdoutAsync(
+        Guid? requestId,
         Dictionary<Guid, ValidationResultEntity> resultDict, 
         Process process, 
         string distro, 
@@ -353,7 +512,7 @@ public sealed class ValidationJobProcessor : BackgroundService
 
         try
         {
-            await foreach (var validatePathResult in JsonSerializer.DeserializeAsyncEnumerable<JsonElement>(process.StandardOutput.BaseStream, cancellationToken: cancellationToken))
+            await foreach (var validatePathResult in JsonSerializer.DeserializeAsyncEnumerable<JsonElement>(process.StandardOutput.BaseStream, ValidatePathOutputJsonOptions, cancellationToken: cancellationToken))
             {
                 var fileName = validatePathResult.GetProperty("FileName").GetString();
 
@@ -389,6 +548,11 @@ public sealed class ValidationJobProcessor : BackgroundService
                 distroResult.ValidatedTime = null;
                 distroResult.ValidatedScore = null;
                 distroResult.RawJsonResult = validatePathResult.GetRawText();
+
+                if (requestId.HasValue)
+                {
+                    _ = NotifyValidationOutputAsync(requestId.Value, result.Id, distro, distroResult.RawJsonResult, cancellationToken);
+                }
 
                 foreach (var property in validatePathResult.EnumerateObject())
                 {
@@ -511,6 +675,11 @@ public sealed class ValidationJobProcessor : BackgroundService
                 finally
                 {
                     dbSemaphore.Release();
+                }
+
+                if (requestId.HasValue)
+                {
+                    await NotifyResultUpdatedAsync(requestId.Value, result, cancellationToken);
                 }
             }
         }
