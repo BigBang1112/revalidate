@@ -89,5 +89,10 @@ public static class WebConfiguration
                 });
             });
         }
+
+        services.AddResponseCompression(options =>
+        {
+            options.EnableForHttps = true;
+        });
     }
 }
