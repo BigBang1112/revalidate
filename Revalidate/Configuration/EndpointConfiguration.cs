@@ -20,13 +20,13 @@ public static class EndpointConfiguration
     private static readonly RevalidateInformation Info = new()
     {
         Message = "Welcome to Revalidate!",
-        Git = new GitInformation
+        /*Git = new GitInformation
         {
             Branch = GitInfo.Branch,
             Commit = GitInfo.CommitHash,
             CommitDate = GitInfo.CommitDate,
             Tag = GitInfo.Tag
-        },
+        },*/
         Distros = [ // port to database later
             new DistroInformation("noble", "Ubuntu 24.04 LTS", "Noble Numbatt"),
             new DistroInformation("plucky", "Ubuntu 25.04", "Plucky Puffin"),

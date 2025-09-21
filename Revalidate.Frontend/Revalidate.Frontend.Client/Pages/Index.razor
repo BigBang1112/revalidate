@@ -24,7 +24,10 @@ else
 			@if (Info is not null)
 			{
 				<div>@Info.Message</div>
-				<div class="text-detail">@(Info.Git.Tag ?? Info.Git.Branch) - @Info.Git.Commit<br />@Info.Git.CommitDate.DateTime.ToString("yyyy-MM-dd'T'HH:mm:ss")</div>
+				@if (Info.Git is not null)
+				{
+					<div class="text-detail">@(Info.Git.Tag ?? Info.Git.Branch) - @Info.Git.Commit<br />@Info.Git.CommitDate.DateTime.ToString("yyyy-MM-dd'T'HH:mm:ss")</div>
+				}
 			}
 		</div>
 		<div class="uploads">
