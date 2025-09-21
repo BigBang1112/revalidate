@@ -82,6 +82,8 @@ public sealed class ValidationResultEntity
     public bool? IsValid { get; set; }
     public bool? IsValidExtracted { get; set; }
 
+    public ValidationClientResultEntity? Client { get; set; }
+
     public Dictionary<string, string[]> Problems { get; set; } = [];
 
     public List<GhostCheckpointEntity> Checkpoints { get; set; } = [];

@@ -414,7 +414,6 @@ public sealed partial class ValidationService : IValidationService
                     IsValidExtracted = result.IsValidExtracted,
                     Distros = result.Distros.Select(distro => new ValidationDistroResult
                     {
-                        Id = distro.Id,
                         DistroId = distro.DistroId,
                         Status = distro.Status,
                         IsValid = distro.IsValid,
@@ -508,7 +507,6 @@ public sealed partial class ValidationService : IValidationService
                 IsValidExtracted = result.IsValidExtracted,
                 Distros = result.Distros.Select(distro => new ValidationDistroResult
                 {
-                    Id = distro.Id,
                     DistroId = distro.DistroId,
                     Status = distro.Status,
                     IsValid = distro.IsValid,

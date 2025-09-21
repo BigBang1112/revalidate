@@ -12,8 +12,8 @@ using Revalidate;
 namespace Revalidate.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20250914013144_AddStatus")]
-    partial class AddStatus
+    [Migration("20250921040508_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -115,6 +115,171 @@ namespace Revalidate.Migrations
                     b.ToTable("GhostInputs");
                 });
 
+            modelBuilder.Entity("Revalidate.Entities.MapEntity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<int?>("AuthorScore")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("AuthorTime")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DeformattedName")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("EnvironmentId")
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<Guid>("FileId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("GameVersion")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("MapId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("MapUid")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("varchar(32)");
+
+                    b.Property<string>("ModeId")
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("NbLaps")
+                        .HasColumnType("int");
+
+                    b.Property<byte[]>("Sha256")
+                        .HasColumnType("BINARY(32)");
+
+                    b.Property<byte[]>("Thumbnail")
+                        .HasColumnType("mediumblob");
+
+                    b.Property<bool>("UserUploaded")
+                        .HasColumnType("tinyint(1)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FileId");
+
+                    b.HasIndex("MapUid");
+
+                    b.HasIndex("Sha256")
+                        .IsUnique();
+
+                    b.ToTable("Maps");
+                });
+
+            modelBuilder.Entity("Revalidate.Entities.ValidationDistroResultEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<Guid?>("AccountId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTimeOffset?>("CompletedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int?>("DeclaredNbCheckpoints")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DeclaredNbRespawns")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DeclaredScore")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("DeclaredTime")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Desc")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("DistroId")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("varchar(16)");
+
+                    b.Property<string>("InputsResult")
+                        .HasMaxLength(1024)
+                        .HasColumnType("varchar(1024)");
+
+                    b.Property<bool?>("IsValid")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<bool?>("IsValidExtracted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<int?>("LogId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("RawJsonResult")
+                        .HasMaxLength(32767)
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid?>("ResultId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<DateTimeOffset?>("StartedAt")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ValidatedNbCheckpoints")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ValidatedNbRespawns")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ValidatedScore")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("ValidatedTime")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LogId");
+
+                    b.HasIndex("ResultId");
+
+                    b.ToTable("ValidationDistroResults");
+                });
+
+            modelBuilder.Entity("Revalidate.Entities.ValidationLogEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Log")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ValidationLogs");
+                });
+
             modelBuilder.Entity("Revalidate.Entities.ValidationRequestEntity", b =>
                 {
                     b.Property<Guid>("Id")
@@ -142,9 +307,6 @@ namespace Revalidate.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<int>("CpuKind")
                         .HasColumnType("int");
 
@@ -162,6 +324,9 @@ namespace Revalidate.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
+                    b.Property<int>("GameVersion")
+                        .HasColumnType("int");
+
                     b.Property<Guid?>("GhostId")
                         .HasColumnType("char(36)");
 
@@ -173,6 +338,23 @@ namespace Revalidate.Migrations
 
                     b.Property<bool?>("IsValid")
                         .HasColumnType("tinyint(1)");
+
+                    b.Property<bool?>("IsValidExtracted")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<string>("Login")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<Guid?>("MapId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("MapUid")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<int>("NbInputs")
+                        .HasColumnType("int");
 
                     b.Property<int>("OsKind")
                         .HasColumnType("int");
@@ -191,12 +373,17 @@ namespace Revalidate.Migrations
                     b.Property<Guid?>("ReplayId")
                         .HasColumnType("char(36)");
 
+                    b.Property<int>("ServerHostType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ServerVersion")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
                     b.Property<byte[]>("Sha256")
                         .IsRequired()
                         .HasColumnType("BINARY(32)");
-
-                    b.Property<DateTimeOffset?>("StartedAt")
-                        .HasColumnType("datetime(6)");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -208,6 +395,10 @@ namespace Revalidate.Migrations
                         .HasColumnType("BINARY(32)");
 
                     b.Property<string>("TitleId")
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("Url")
                         .HasMaxLength(255)
                         .HasColumnType("varchar(255)");
 
@@ -223,6 +414,8 @@ namespace Revalidate.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("GhostId");
+
+                    b.HasIndex("MapId");
 
                     b.HasIndex("ReplayId");
 
@@ -268,17 +461,50 @@ namespace Revalidate.Migrations
                     b.Navigation("ValidationResult");
                 });
 
+            modelBuilder.Entity("Revalidate.Entities.MapEntity", b =>
+                {
+                    b.HasOne("Revalidate.Entities.FileEntity", "File")
+                        .WithMany()
+                        .HasForeignKey("FileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("File");
+                });
+
+            modelBuilder.Entity("Revalidate.Entities.ValidationDistroResultEntity", b =>
+                {
+                    b.HasOne("Revalidate.Entities.ValidationLogEntity", "Log")
+                        .WithMany("Results")
+                        .HasForeignKey("LogId");
+
+                    b.HasOne("Revalidate.Entities.ValidationResultEntity", "Result")
+                        .WithMany("Distros")
+                        .HasForeignKey("ResultId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Log");
+
+                    b.Navigation("Result");
+                });
+
             modelBuilder.Entity("Revalidate.Entities.ValidationResultEntity", b =>
                 {
                     b.HasOne("Revalidate.Entities.FileEntity", "Ghost")
                         .WithMany()
                         .HasForeignKey("GhostId");
 
+                    b.HasOne("Revalidate.Entities.MapEntity", "Map")
+                        .WithMany()
+                        .HasForeignKey("MapId");
+
                     b.HasOne("Revalidate.Entities.FileEntity", "Replay")
                         .WithMany()
                         .HasForeignKey("ReplayId");
 
                     b.Navigation("Ghost");
+
+                    b.Navigation("Map");
 
                     b.Navigation("Replay");
                 });
@@ -298,9 +524,16 @@ namespace Revalidate.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Revalidate.Entities.ValidationLogEntity", b =>
+                {
+                    b.Navigation("Results");
+                });
+
             modelBuilder.Entity("Revalidate.Entities.ValidationResultEntity", b =>
                 {
                     b.Navigation("Checkpoints");
+
+                    b.Navigation("Distros");
 
                     b.Navigation("Inputs");
                 });

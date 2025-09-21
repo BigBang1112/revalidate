@@ -178,11 +178,26 @@ namespace Revalidate.Migrations
                     b.ToTable("Maps");
                 });
 
+            modelBuilder.Entity("Revalidate.Entities.ValidationClientResultEntity", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ValidationClientResultEntity");
+                });
+
             modelBuilder.Entity("Revalidate.Entities.ValidationDistroResultEntity", b =>
                 {
-                    b.Property<Guid>("Id")
+                    b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("char(36)");
+                        .HasColumnType("int");
+
+                    MySqlPropertyBuilderExtensions.UseMySqlIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<Guid?>("AccountId")
                         .HasColumnType("char(36)");
@@ -302,6 +317,9 @@ namespace Revalidate.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<int?>("ClientId")
+                        .HasColumnType("int");
+
                     b.Property<int>("CpuKind")
                         .HasColumnType("int");
 
@@ -408,6 +426,8 @@ namespace Revalidate.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ClientId");
+
                     b.HasIndex("GhostId");
 
                     b.HasIndex("MapId");
@@ -485,6 +505,10 @@ namespace Revalidate.Migrations
 
             modelBuilder.Entity("Revalidate.Entities.ValidationResultEntity", b =>
                 {
+                    b.HasOne("Revalidate.Entities.ValidationClientResultEntity", "Client")
+                        .WithMany()
+                        .HasForeignKey("ClientId");
+
                     b.HasOne("Revalidate.Entities.FileEntity", "Ghost")
                         .WithMany()
                         .HasForeignKey("GhostId");
@@ -496,6 +520,8 @@ namespace Revalidate.Migrations
                     b.HasOne("Revalidate.Entities.FileEntity", "Replay")
                         .WithMany()
                         .HasForeignKey("ReplayId");
+
+                    b.Navigation("Client");
 
                     b.Navigation("Ghost");
 

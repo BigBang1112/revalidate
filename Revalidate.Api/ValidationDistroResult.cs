@@ -2,7 +2,6 @@
 
 public sealed class ValidationDistroResult
 {
-    public required Guid Id { get; init; }
     public required string DistroId { get; init; }
     public required ValidationStatus Status { get; set; }
     public bool? IsValid { get; init; }

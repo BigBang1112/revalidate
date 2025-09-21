@@ -6,7 +6,7 @@ namespace Revalidate.Entities;
 
 public class ValidationDistroResultEntity
 {
-    public Guid Id { get; init; } = Guid.CreateVersion7();
+    public int Id { get; set; }
 
     public ValidationResultEntity? Result { get; set; }
     public Guid? ResultId { get; set; }
