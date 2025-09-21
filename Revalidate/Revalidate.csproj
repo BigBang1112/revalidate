@@ -10,9 +10,6 @@
 	</PropertyGroup>
 
 	<PropertyGroup Label="Configure GitInfo">
-		<!-- optional, default value: $([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), '.gitignore')) -->
-		<GitInfo_RootDirectory>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), 'Revalidate.slnx'))\.git</GitInfo_RootDirectory>
-
 		<GitInfo_Namespace>Revalidate</GitInfo_Namespace>
 
 		<GitInfo_CommitAbbreviatedLength>7</GitInfo_CommitAbbreviatedLength>
