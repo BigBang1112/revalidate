@@ -9,6 +9,11 @@ public static class MiddlewareConfiguration
     {
         app.UseForwardedHeaders();
 
+        if (app.Environment.IsDevelopment())
+        {
+            app.UseHttpsRedirection();
+        }
+
         if (!app.Environment.IsDevelopment())
         {
             app.UseResponseCompression();

@@ -86,7 +86,8 @@ public static class WebConfiguration
                 options.AddDefaultPolicy(policy =>
                 {
                     policy.WithOrigins("https://revalidate.gbx.tools")
-                          .WithMethods("GET", "POST", "DELETE");
+                          .WithMethods("GET", "POST", "DELETE")
+                          .AllowAnyHeader();
                 });
             });
         }
@@ -101,7 +102,7 @@ public static class WebConfiguration
             options.ForwardedHeaders =
                 ForwardedHeaders.XForwardedFor |
                 ForwardedHeaders.XForwardedProto;
-            options.KnownNetworks.Clear();
+            options.KnownIPNetworks.Clear();
             options.KnownProxies.Clear();
         });
     }
