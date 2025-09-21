@@ -34,6 +34,12 @@ EXPOSE 8081
 RUN apt-get update && \
     apt-get install -y docker.io && \
     rm -rf /var/lib/apt/lists/*
+    
+# Allow APP_UID to write to the data directories
+RUN mkdir -p /app/data && \
+    chown -R $APP_UID:$APP_UID /app/data && \
+    chmod -R 775 /app/data
+
 # RUN apk add --no-cache tzdata
 
 WORKDIR /app
