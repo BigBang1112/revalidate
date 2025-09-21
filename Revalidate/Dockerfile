@@ -1,5 +1,5 @@
 # Debug phase
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS base
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
 USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
@@ -7,7 +7,7 @@ EXPOSE 8081
 
 
 # Publish phase
-FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS publish
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0 AS publish
 ARG TARGETARCH
 ARG APPNAME=Revalidate
 WORKDIR /src
@@ -26,10 +26,14 @@ RUN dotnet publish -a $TARGETARCH --no-restore -o /app
 
 
 # Final phase
-FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine
+FROM mcr.microsoft.com/dotnet/aspnet:10.0
 EXPOSE 8080
 EXPOSE 8081
 
+# Install docker CLI
+RUN apt-get update && \
+    apt-get install -y docker.io && \
+    rm -rf /var/lib/apt/lists/*
 # RUN apk add --no-cache tzdata
 
 WORKDIR /app
