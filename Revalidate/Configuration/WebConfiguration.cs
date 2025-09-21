@@ -78,5 +78,16 @@ public static class WebConfiguration
                 });
             });
         }
+        else 
+        {
+            services.AddCors(options =>
+            {
+                options.AddDefaultPolicy(policy =>
+                {
+                    policy.WithOrigins("https://revalidate.gbx.tools")
+                          .WithMethods("GET", "POST", "DELETE");
+                });
+            });
+        }
     }
 }
