@@ -11,10 +11,8 @@
 
 	<PropertyGroup Label="Configure GitInfo">
 		<GitInfo_Namespace>Revalidate</GitInfo_Namespace>
-
 		<GitInfo_CommitAbbreviatedLength>7</GitInfo_CommitAbbreviatedLength>
-
-		<GitInfo_UseCache>true</GitInfo_UseCache>
+		<GitInfo_UseCache>false</GitInfo_UseCache>
     </PropertyGroup>
 
     <ItemGroup>
