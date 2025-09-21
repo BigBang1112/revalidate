@@ -43,7 +43,7 @@ COPY --link --from=publish /app .
 # Allow APP_UID to write to the data directories
 RUN mkdir -p /app/data && \
     chown -R $APP_UID:$APP_UID /app/data && \
-    chmod -R 775 /app/data
+    chmod -R 777 /app/data # temporary 777 because there are issues with running Docker MSM
 
 USER $APP_UID
 ENTRYPOINT ["./Revalidate"]
