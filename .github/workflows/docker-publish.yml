@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        project: [Revalidate, Revalidate.Frontend]
+        project: [Revalidate, Revalidate.Frontend/Revalidate.Frontend]
         image_name: [revalidate, revalidate-frontend]
     steps:
       - name: Checkout
