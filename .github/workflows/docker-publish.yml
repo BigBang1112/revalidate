@@ -11,9 +11,13 @@ jobs:
   build-and-push:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
-        project: [Revalidate, Revalidate.Frontend/Revalidate.Frontend]
-        image_name: [revalidate, revalidate-frontend]
+        include:
+          - project: Revalidate
+            image_name: revalidate
+          - project: Revalidate.Frontend/Revalidate.Frontend
+            image_name: revalidate-frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
