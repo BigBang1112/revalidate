@@ -1,7 +1,6 @@
 ﻿using Revalidate.Api;
 using Revalidate.Entities;
 using Revalidate.Mapping;
-using Serilog.Events;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -15,6 +14,7 @@ namespace Revalidate.Services;
 public sealed class ValidationJobProcessor : BackgroundService
 {
     private readonly IServiceScopeFactory scopeFactory;
+    private readonly IConfiguration config;
     private readonly ILogger<ValidationJobProcessor> logger;
 
     private readonly Channel<Guid> channel;
@@ -28,9 +28,10 @@ public sealed class ValidationJobProcessor : BackgroundService
 
     private static readonly SemaphoreSlim dbSemaphore = new(1, 1);
 
-    public ValidationJobProcessor(IServiceScopeFactory scopeFactory, ILogger<ValidationJobProcessor> logger)
+    public ValidationJobProcessor(IServiceScopeFactory scopeFactory, IConfiguration config, ILogger<ValidationJobProcessor> logger)
     {
         this.scopeFactory = scopeFactory;
+        this.config = config;
         this.logger = logger;
 
         var options = new BoundedChannelOptions(50)
@@ -348,6 +349,7 @@ public sealed class ValidationJobProcessor : BackgroundService
                 "-e", $"MSM_TITLE={titleId}",
                 "-v", $"\"{ArchivesDir}:/app/data/archives\"",
                 "-v", $"\"{VersionsDir}:/app/data/servers\"",
+                config["MSM:AdditionalDockerArguments"],
                 $"bigbang1112/mania-server-manager:{distro}",
             ]);
 
@@ -434,6 +436,7 @@ public sealed class ValidationJobProcessor : BackgroundService
             "-e", "MSM_ONLY_SETUP=True",
             "-v", $"\"{ArchivesDir}:/app/data/archives\"",
             "-v", $"\"{VersionsDir}:/app/data/servers\"",
+            config["MSM:AdditionalDockerArguments"],
             "bigbang1112/mania-server-manager",
         ]);
 
