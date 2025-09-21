@@ -14,7 +14,7 @@
 
 		<GitInfo_CommitAbbreviatedLength>7</GitInfo_CommitAbbreviatedLength>
 
-		<GitInfo_UseAggressiveCache>true</GitInfo_UseAggressiveCache>
+		<GitInfo_UseCache>true</GitInfo_UseCache>
     </PropertyGroup>
 
     <ItemGroup>
