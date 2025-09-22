@@ -1,11 +1,12 @@
 ﻿using GBX.NET.Engines.Game;
-using GBX.NET.Imaging.SkiaSharp;
+using GBX.NET.Imaging.ImageSharp;
 using ManiaAPI.NadeoAPI;
 using Microsoft.EntityFrameworkCore;
 using Revalidate.Api;
 using Revalidate.Entities;
 using Revalidate.Exceptions;
 using Revalidate.Models;
+using SixLabors.ImageSharp.Formats.Jpeg;
 using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text.RegularExpressions;
@@ -58,7 +59,7 @@ public sealed partial class MapService : IMapService
         var mapNode = uploadedMap.MapGbx.Node;
 
         await using var thumbnailStream = new MemoryStream();
-        mapNode.ExportThumbnail(thumbnailStream, SkiaSharp.SKEncodedImageFormat.Jpeg, 95);
+        mapNode.ExportThumbnail(thumbnailStream, new JpegEncoder { Quality = 95 });
 
         ValidateMapUidOrThrow(mapNode.MapUid);
 
@@ -146,7 +147,7 @@ public sealed partial class MapService : IMapService
                     var mapNode = GBX.NET.Gbx.ParseHeaderNode<CGameCtnChallenge>(mapStream);
 
                     await using var thumbnailStream = new MemoryStream();
-                    mapNode.ExportThumbnail(thumbnailStream, SkiaSharp.SKEncodedImageFormat.Jpeg, 95);
+                    mapNode.ExportThumbnail(thumbnailStream, new JpegEncoder { Quality = 95 });
 
                     var hashElapsedTime = Stopwatch.GetElapsedTime(hashStartTimestamp);
 
