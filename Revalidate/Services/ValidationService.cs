@@ -981,6 +981,8 @@ public sealed partial class ValidationService : IValidationService
         SteerLeft => nameof(SteerLeft),
         SteerRight => nameof(SteerRight),
         ActionSlot => nameof(ActionSlot),
+        FreeLook => nameof(FreeLook),
+        Jump => nameof(Jump),
         _ => throw new ArgumentException($"Unknown input type: {input.GetType()}.", nameof(input))
     };
 
