@@ -4,3 +4,39 @@
 <PageTitle>About - Revalidate</PageTitle>
 
 <h1>About</h1>
+
+<p>Revalidate is a unified solution to validate Trackmania replays and ghosts remotely (aka: outside of the game). Idea initiated by BigBang1112 but was made possible thanks to Auris and Mystixor!</p>
+
+<p>Since 2003, Trackmania has had an ingame replay validation feature, but since Trackmania released in 2020, it has largely degraded - users cannot validate their replays ingame anymore. But it was found that some form of validation is still available.</p>
+
+<p>Leaderboards maintained by Nadeo are mostly not automatically validated:
+	<ul>
+		<li>In Trackmania (2020), leaderboards have an internal flagging system that probably uses replay validation, but moderation has improved only recently.</li>
+		<li>In Trackmania 2, replay validation applies only to Top 10 records and is evaluated in the morning. Invalid records are automatically removed.</li>
+		<li>In Trackmania Turbo, only the world record per platform is validated.</li>
+		<li>In Trackmania United Forever, leaderboards don't use replay validation at all.</li>
+	</ul>
+</p>
+
+<p>However, all of these games have some form of I/O replay validation available:
+	<ul>
+		<li>Trackmania (2020) and Trackmania 2 replays can be validated through a dedicated server command. Convenient.</li>
+		<li>Trackmania United Forever and Trackmania Turbo replays can be validated only with a GUI client executable command. Less convenient, but possible with a fake X server.</li>
+	</ul>
+</p>
+
+<p>So, instead of focusing on a single Trackmania game, Revalidate handles TM2020 and TM2 (+ eventually TMUF and TMT) with no difference of user experience.</p>
+
+<h2>How it works</h2>
+
+<p>Revalidate is a web API service that handles 4 stages:
+	<ol>
+		<li>Gathers replay, ghost, and map files from different Trackmania games via client uploads</li>
+		<li>Schedules validation tests on dedicated servers running as Docker containers</li>
+		<li>Retrieves standard output, links the results with the individual replay/ghost files</li>
+		<li>Stores the validation results in a database</li>
+		<li>Sends the validation results back to users</li>
+	</ol>
+</p>
+
+<p>Ghosts can be validated alone on maps that are known and stored on Revalidate or retrievable externally, like TM2020 maps. For replays, you can opt in for validation against a different map than the one stored in the replay file. If not opted in, it is evaluated automatically. Beware that ghost exports from replays are still experimental.</p>

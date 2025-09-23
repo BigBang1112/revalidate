@@ -1,12 +1,15 @@
 # Revalidate
 
+![Revalidate](preview.png)
+
 Revalidate is a unified solution to validate Trackmania replays and ghosts remotely (aka: outside of the game).
 
-Since 2003, Trackmania has had an ingame replay validation feature, but since Trackmania released in 2020, it has largely degrated - users cannot validate their replays ingame anymore. But it was found that some form of validation is still available.
+Since 2003, Trackmania has had an ingame replay validation feature, but since Trackmania released in 2020, it has largely degraded - users cannot validate their replays ingame anymore. But it was found that some form of validation is still available.
 
 Leaderboards maintained by Nadeo are mostly not automatically validated:
 - In Trackmania (2020), leaderboards have an internal flagging system that probably uses replay validation, but moderation has improved only recently.
 - In Trackmania 2, replay validation applies only to Top 10 records and is evaluated in the morning. Invalid records are automatically removed.
+- In Trackmania Turbo, only the world record per platform is validated.
 - In Trackmania United Forever, leaderboards don't use replay validation at all.
 
 However, all of these games have some form of I/O replay validation available:
@@ -36,3 +39,8 @@ TBD
 ## CLI
 
 Planned in the future.
+
+# Special thanks
+
+- Auris
+- Mystixor
