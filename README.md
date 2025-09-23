@@ -1,8 +1,6 @@
-# Revalidate
-
 ![Revalidate](preview.png)
 
-Revalidate is a unified solution to validate Trackmania replays and ghosts remotely (aka: outside of the game).
+**Revalidate** is a unified solution to validate Trackmania replays and ghosts remotely (aka: outside of the game).
 
 Since 2003, Trackmania has had an ingame replay validation feature, but since Trackmania released in 2020, it has largely degraded - users cannot validate their replays ingame anymore. But it was found that some form of validation is still available.
 
@@ -21,7 +19,7 @@ So, instead of focusing on a single Trackmania game, Revalidate handles TM2020 a
 
 ## How it works
 
-Revalidate is a web API service that handles 4 stages:
+Revalidate is a web API service that handles 5 stages:
 1. Gathers replay, ghost, and map files from different Trackmania games via client uploads
 2. Schedules validation tests on dedicated servers running as Docker containers
 3. Retrieves standard output, links the results with the individual replay/ghost files
