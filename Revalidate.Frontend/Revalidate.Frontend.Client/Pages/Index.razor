@@ -95,11 +95,11 @@ else
 								</div>
 								@if (!string.IsNullOrEmpty(metadata?.Detail))
 								{
-									<div class="text-detail">
+									<div class="text-detail wideonly">
 										@metadata.Detail
 									</div>
 								}
-								<div class="validation-result">
+								<div class="validation-result wideonly">
 									@if (distroResult.Status == ValidationStatus.Processing)
 									{
 										<ReuLoader Size="40"></ReuLoader>
@@ -121,7 +121,7 @@ else
 						}
 					</div>
 					<div class="details">
-						<div style="display: flex; gap: 5px;">
+						<div style="display: flex; gap: 5px; text-align: center;">
 							@if (SelectedFile.SelectedDistro is null)
 							{
 								@if (SelectedFile.Section is ResultSection.DistroResult or ResultSection.JsonResult or ResultSection.ValidationLog)

@@ -240,7 +240,7 @@
 
 @media (max-width: 1400px) {
     .tooling {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
         gap: 20px;
     }
     .tooling .info {
@@ -249,5 +249,11 @@
     }
     .tooling .results {
         flex: 1;
+    }
+}
+
+@media (max-width: 600px) {
+    .wideonly {
+        display: none;
     }
 }
