@@ -673,6 +673,11 @@ public sealed class ValidationJobProcessor : BackgroundService
                     }
                 }
 
+                if (distroResult.InputsResult?.Length > 1024)
+                {
+                    continue;
+                }
+
                 await dbSemaphore.WaitAsync(cancellationToken);
 
                 try
