@@ -34,7 +34,7 @@ public class ValidationDistroResultEntity
 
     public Guid? AccountId { get; set; }
 
-    [StringLength(1024)]
+    [StringLength(short.MaxValue)]
     public string? InputsResult { get; set; }
 
     [StringLength(byte.MaxValue)]
