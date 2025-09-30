@@ -194,7 +194,7 @@ public sealed partial class ValidationService : IValidationService
 
                         var ghostFileEntity = await FileEntity.FromStreamAsync(stream, cancellationToken);
 
-                        var ghostResult = CreateValidationResult(ghostGbx.FilePath, sha256, replayFileEntity: null, ghostFileEntity, ghostGbx.Node, isGhostExtracted: false, url: null, errorBag: new ConcurrentDictionary<string, List<string>>());
+                        var ghostResult = CreateValidationResult(ghostGbx.FilePath, sha256, replayFileEntity: null, ghostFileEntity, ghostGbx.Node, ghostGbx.Node.Validate_ChallengeUid, isGhostExtracted: false, url: null, errorBag: new ConcurrentDictionary<string, List<string>>());
                         validationRequest.Results.Add(ghostResult);
                         break;
                     case Gbx<CGameCtnChallenge> mapGbx:
@@ -318,7 +318,7 @@ public sealed partial class ValidationService : IValidationService
 
                 if (result is null)
                 {
-                    result = CreateValidationResult(fileName, sha256, null, ghostFileEntity, ghost, isGhostExtracted: false, record.Url, errorBag);
+                    result = CreateValidationResult(fileName, sha256, null, ghostFileEntity, ghost, ghost.Validate_ChallengeUid, isGhostExtracted: false, record.Url, errorBag);
                 }
                 else
                 {
@@ -756,12 +756,17 @@ public sealed partial class ValidationService : IValidationService
 
             var errorBag = new ConcurrentDictionary<string, List<string>>();
 
-            if (ghost.Validate_ChallengeUid != replay.Challenge?.MapUid)
+            // validation replays given from dedicated servers have Validate_ChallengeUid empty for some odd reason
+            if (!string.IsNullOrWhiteSpace(ghost.Validate_ChallengeUid) && ghost.Validate_ChallengeUid != replay.Challenge?.MapUid)
             {
                 errorBag.TryAdd(nameof(ghost.Validate_ChallengeUid), [$"ChallengeUid '{ghost.Validate_ChallengeUid}' does not match the replay's MapUid '{replay.Challenge?.MapUid}'."]);
             }
 
-            yield return CreateValidationResult(replayGbx.FilePath, sha256, fileEntity, ghostFileEntity, ghost, isGhostExtracted: true, url: null, errorBag);
+            var mapUid = !string.IsNullOrWhiteSpace(ghost.Validate_ChallengeUid)
+                ? ghost.Validate_ChallengeUid
+                : replay.Challenge?.MapUid;
+
+            yield return CreateValidationResult(replayGbx.FilePath, sha256, fileEntity, ghostFileEntity, ghost, mapUid, isGhostExtracted: true, url: null, errorBag);
         }
     }
 
@@ -771,6 +776,7 @@ public sealed partial class ValidationService : IValidationService
         FileEntity? replayFileEntity,
         FileEntity? ghostFileEntity, 
         CGameCtnGhost ghost,
+        string? mapUid,
         bool isGhostExtracted,
         string? url,
         ConcurrentDictionary<string, List<string>> errorBag)
@@ -806,7 +812,7 @@ public sealed partial class ValidationService : IValidationService
             TitleChecksum = ghost.Validate_TitleChecksum?.GetBytes(),
             NbInputs = inputs.Count,
             Login = ghost.GhostLogin,
-            MapUid = ghost.Validate_ChallengeUid,
+            MapUid = mapUid,
             ServerVersion = serverVersion,
             ServerHostType = hostType,
             Url = url,
