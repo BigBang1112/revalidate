@@ -318,6 +318,10 @@ public sealed class ValidationJobProcessor : BackgroundService
         var processes = new Dictionary<string, Process>();
         var logs = new Dictionary<string, StringBuilder>();
 
+        // for TM2, on custom title packs, master server authentication is required. having multiple servers connecting at once causes errors
+        var officialTitles = new string[] { "TMCanyon@nadeo", "TMStadium@nadeo", "TMValley@nadeo", "TMLagoon@nadeo" };
+        var needsSync = gameVersion == GameVersion.TM2 && !string.IsNullOrEmpty(titleId) && !officialTitles.Contains(titleId);
+
         foreach (var distro in Distros)
         {
             // change targetted results from Pending to Processing (or something else to Processing)
@@ -350,6 +354,7 @@ public sealed class ValidationJobProcessor : BackgroundService
                 "-e", "MSM_VALIDATE_PATH=.",
                 "-e", "MSM_ONLY_STDOUT=True",
                 "-e", $"MSM_TITLE={titleId}",
+                needsSync ? $"-e MSM_ACCOUNT_LOGIN={config["MSM:ManiaPlanet:DedicatedServer:Login"]} -e MSM_ACCOUNT_PASSWORD={config["MSM:ManiaPlanet:DedicatedServer:Password"]}" : "",
                 "-v", $"\"{archivesDir}:/app/data/archives\"",
                 "-v", $"\"{versionsDir}:/app/data/servers\"",
                 config["MSM:AdditionalDockerArguments"],
@@ -380,6 +385,11 @@ public sealed class ValidationJobProcessor : BackgroundService
                 ProcessStderrAsync(requestId, results, distro, process, sbLogs, cancellationToken),
                 process.WaitForExitAsync(cancellationToken)
             ];
+
+            if (needsSync)
+            {
+                await Task.WhenAll(tasks[distro]);
+            }
         }
 
         await Task.WhenAll(tasks.SelectMany(x => x.Value));
