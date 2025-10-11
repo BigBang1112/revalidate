@@ -115,7 +115,7 @@ public sealed partial class MapService : IMapService
         switch (gameVersion)
         {
             case GameVersion.TM2020:
-                MapInfoLive tm2020Map;
+                MapInfoLive? tm2020Map;
 
                 try
                 {
@@ -129,6 +129,7 @@ public sealed partial class MapService : IMapService
 
                 if (tm2020Map is null)
                 {
+                    logger.LogWarning("TM2020 map with MapUid {MapUid} not found", mapUid);
                     return null;
                 }
 
