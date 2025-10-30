@@ -19,15 +19,15 @@
         <PackageReference Include="GBX.NET" Version="2.2.2" />
         <PackageReference Include="GBX.NET.Imaging.ImageSharp" Version="1.0.2" />
         <PackageReference Include="GBX.NET.LZO" Version="2.1.2" />
-        <PackageReference Include="ManiaAPI.ManiaPlanetAPI" Version="2.4.0" />
-        <PackageReference Include="ManiaAPI.NadeoAPI" Version="2.4.1" />
+        <PackageReference Include="ManiaAPI.ManiaPlanetAPI" Version="2.5.1" />
+        <PackageReference Include="ManiaAPI.NadeoAPI" Version="2.5.0" />
         <PackageReference Include="ManiaAPI.NadeoAPI.Extensions.Hosting" Version="2.4.0" />
-        <PackageReference Include="ManiaAPI.TMX" Version="2.4.0" />
+        <PackageReference Include="ManiaAPI.TMX" Version="2.5.0" />
         <PackageReference Include="ManiaAPI.TMX.Extensions.Gbx" Version="2.4.0" />
-        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.9" />
+        <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.10" />
         <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
-        <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.9.0" />
-        <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.9.0" />
+        <PackageReference Include="Microsoft.Extensions.Caching.Hybrid" Version="9.10.0" />
+        <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="9.10.0" />
         <PackageReference Include="OneOf" Version="3.0.271" />
         <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
         <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.2" />
@@ -36,20 +36,20 @@
         <PackageReference Include="OpenTelemetry.Api.ProviderBuilderExtensions" Version="1.13.1" />
         <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.13.1" />
         <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.13.1" />
-        <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.12.0" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.Http" Version="1.13.0" />
         <PackageReference Include="OpenTelemetry.Instrumentation.Process" Version="1.12.0-beta.1" />
-        <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.12.0" />
-        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.12.0" />
-        <PackageReference Include="Scalar.AspNetCore" Version="2.8.11" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" Version="1.13.0" />
+        <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" Version="1.13.0" />
+        <PackageReference Include="Scalar.AspNetCore" Version="2.9.0" />
         <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="9.0.0" />
         <PackageReference Include="Pomelo.EntityFrameworkCore.MySql" Version="9.0.0" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.9" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.9" />
-        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.9">
+        <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.10" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.10" />
+        <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="9.0.10">
             <PrivateAssets>all</PrivateAssets>
             <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
         </PackageReference>
-        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.11" />
+        <PackageReference Include="SixLabors.ImageSharp" Version="3.1.12" />
     </ItemGroup>
 
     <ItemGroup>
