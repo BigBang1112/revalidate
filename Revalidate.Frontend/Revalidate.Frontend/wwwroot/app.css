@@ -15,19 +15,10 @@ pre {
 }
 
 .revalidate-button-validate {
-    background: #1E72CC !important;
     font-weight: bold;
     font-size: 150%;
     height: 50px;
 }
-
-    .revalidate-button-validate:hover {
-        background: #258CFB !important;
-    }
-
-    .revalidate-button-validate:disabled {
-        background: #333 !important;
-    }
 
 .revalidate-button.valid {
     background: #262 !important;

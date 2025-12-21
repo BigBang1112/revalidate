@@ -12,9 +12,38 @@
     <ReuNavItem Name="Discord" Href="https://discord.gbx.tools" IconType="IconType.Discord" IsNavLink="false" IconOnly="true" Title="Join the Discord server"></ReuNavItem>
 </ReuNavMenu>
 
-<ReuContainer>
-    @Body
-</ReuContainer>
+<ReuMain>
+    <ReuContainer>
+        @Body
+    </ReuContainer>
+</ReuMain>
+
+<ReuFooter>
+    <CopyrightContent>
+        © 2025 Petr '<a href="https://bigbang1112.cz">BigBang1112</a>' Pivoňka<br />
+        <small>
+            Not affiliated with or endorsed by Nadeo or Ubisoft.
+            All relevant trademarks belong to their respective owners.
+        </small>
+    </CopyrightContent>
+    <LinkContent>
+        <a href="@($"{GetPublicBaseUrl()}/scalar")">API</a>
+    </LinkContent>
+    <ExtraContent>
+        <div class="footer-discover-more">
+            <span>Discover more:</span>
+            <a href="https://gbx.tools">gbx.tools</a>
+            <a href="https://explorer.gbx.tools">explorer.gbx.tools</a>
+            <a href="https://3d.gbx.tools">3d.gbx.tools</a>
+            <a href="https://io.gbx.tools">io.gbx.tools</a>
+            <a href="https://nc.gbx.tools">nc.gbx.tools</a>
+            <span>revalidate.gbx.tools</span>
+            <a href="https://envimix.gbx.tools">envimix.gbx.tools</a>
+            <a href="https://uotd.gbx.tools">uotd.gbx.tools</a>
+            <a href="https://nuget.gbx.tools">nuget.gbx.tools</a>
+        </div>
+    </ExtraContent>
+</ReuFooter>
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.
