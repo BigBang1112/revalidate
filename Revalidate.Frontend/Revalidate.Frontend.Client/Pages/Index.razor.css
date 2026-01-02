@@ -237,6 +237,7 @@
     height: 300px;
     overflow: auto;
     max-height: min-content;
+    box-sizing: border-box;
 }
 
 @media (max-width: 1400px) {
