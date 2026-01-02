@@ -464,9 +464,9 @@ else
 }
 
 @code {
-	ElementReference logRef;
+    ElementReference logRef;
 
-	static Dictionary<string, (string img, int size)> DistroIcons = new()
+    static Dictionary<string, (string img, int size)> DistroIcons = new()
 	{
 		{ "noble", ("ubuntu.svg", 60) },
 		{ "plucky", ("ubuntu.svg", 60) },
@@ -475,159 +475,183 @@ else
 		{ "fedora", ("fedora.svg", 55) },
 	};
 
-	static RevalidateInformation? Info;
-	static Dictionary<string, int> DistroOrder = [];
-	static Dictionary<string, DistroInformation> DistroMetadata = [];
+    static RevalidateInformation? Info;
+    static Dictionary<string, int> DistroOrder = [];
+    static Dictionary<string, DistroInformation> DistroMetadata = [];
 
-	bool ApiUnavailable;
-	bool ValidateAvailable;
-	bool RateLimited;
+    bool ApiUnavailable;
+    bool ValidateAvailable;
+    bool RateLimited;
 
-	List<FileUpload> UploadedFiles = [];
-	FileUpload? SelectedFile;
+    List<FileUpload> UploadedFiles = [];
+    FileUpload? SelectedFile;
 
-	Dictionary<string, string[]> Errors = [];
-	Dictionary<string, string[]> Warnings = [];
-	Dictionary<(Guid, string), JsonElement> RawJsonResults = [];
-	Dictionary<(Guid, string), List<string>> ValidationLogs = [];
-	Dictionary<Guid, ImmutableList<GhostInput>> Inputs = [];
+    Dictionary<string, string[]> Errors = [];
+    Dictionary<string, string[]> Warnings = [];
+    Dictionary<(Guid, string), JsonElement> RawJsonResults = [];
+    Dictionary<(Guid, string), List<string>> ValidationLogs = [];
+    Dictionary<Guid, ImmutableList<GhostInput>> Inputs = [];
 
-	[SupplyParameterFromQuery(Name = "r")]
-	public string? RequestId { get; set; }
+    [SupplyParameterFromQuery(Name = "r")]
+    public string? RequestId { get; set; }
 
-	protected override async Task OnAfterRenderAsync(bool firstRender)
-	{
-		if (!firstRender)
-		{
-			return;
-		}
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
 
-		try
-		{
-			Info ??= await RevalidateClient.GetInfoAsync();
+        try
+        {
+            Info ??= await RevalidateClient.GetInfoAsync();
 
-			DistroOrder = Info.Distros
-				.Select((distro, index) => (distro, index))
-				.ToDictionary(x => x.distro.Id, x => x.index);
+            DistroOrder = Info.Distros
+                .Select((distro, index) => (distro, index))
+                .ToDictionary(x => x.distro.Id, x => x.index);
 
-			DistroMetadata = Info.Distros
-				.ToDictionary(distro => distro.Id, distro => distro);
+            DistroMetadata = Info.Distros
+                .ToDictionary(distro => distro.Id, distro => distro);
 
-			ValidateAvailable = true;
-		}
-		catch (HttpRequestException)
-		{
-			ApiUnavailable = true;
-		}
+            ValidateAvailable = true;
+        }
+        catch (HttpRequestException)
+        {
+            ApiUnavailable = true;
+        }
 
-		if (Guid.TryParse(RequestId, out var requestId))
-		{
-			try
-			{
-				var request = await RevalidateClient.GetRequestByIdAsync(requestId);
+        await LoadCurrentRequestIdAsync();
 
-				if (request is null)
-				{
-					RequestId = null;
-					NavManager.NavigateTo("/", forceLoad: false);
-				}
-				else
-				{
-					foreach (var result in request.Results)
-					{
-						try
+        StateHasChanged();
+    }
+
+    private async Task LoadCurrentRequestIdAsync()
+    {
+        if (!Guid.TryParse(RequestId, out var requestId))
+        {
+            return;
+        }
+
+        try
+        {
+            var request = await RevalidateClient.GetRequestByIdAsync(requestId);
+
+            if (request is null)
+            {
+                RequestId = null;
+                NavManager.NavigateTo("/", forceLoad: false);
+            }
+            else
+            {
+                foreach (var result in request.Results)
+                {
+                    try
+                    {
+                        var file = new FileUpload(result.FileName ?? result.Id.ToString(), Data: [], LastModified: null, Gbx: null)
 						{
-							var file = new FileUpload(result.FileName ?? result.Id.ToString(), Data: [], LastModified: null, Gbx: null)
-							{
-								Result = result
-							};
+							Result = result
+						};
 
-							UploadedFiles.Add(file);
-						}
-						catch
-						{
-							// ignore invalid files
-						}
-					}
+                        UploadedFiles.Add(file);
+                    }
+                    catch
+                    {
+                        // ignore invalid files
+                    }
+                }
 
-					SelectedFile = UploadedFiles.FirstOrDefault();
-				}
+                SelectedFile = UploadedFiles.FirstOrDefault();
+            }
+        }
+        catch (RevalidateProblemException ex)
+        {
+            Errors = ex.Problem?.Errors ?? [];
+        }
+    }
+
+    private void OnUpload(UploadEventArgs args)
+    {
+        if (UploadedFiles.Count >= 10)
+        {
+            return;
+        }
+
+        try
+        {
+            using var ms = new MemoryStream(args.Data);
+            var gbx = GBX.NET.Gbx.ParseHeader(ms);
+            var file = new FileUpload(args.FileName, args.Data, args.LastModified, gbx);
+            UploadedFiles.Add(file);
+            SelectedFile = file;
+        }
+        catch
+        {
+            // ignore invalid files
+        }
+    }
+
+    private async Task ValidateAsync()
+    {
+        ValidateAvailable = false;
+        StateHasChanged();
+
+        ValidationRequest request;
+        try
+        {
+            request = await RevalidateClient.ValidateAsync(UploadedFiles.Select(x => (x.FileName, (Stream)new MemoryStream(x.Data))));
+        }
+        catch (RevalidateProblemException ex)
+        {
+            Errors = ex.Problem?.Errors ?? [];
+            Warnings = [];
+            ValidateAvailable = true;
+            StateHasChanged();
+            return;
+        }
+        catch (RevalidateRateLimitException)
+        {
+            Errors = new() { { "Validation limit reached", [] } };
+            Warnings = [];
+            ValidateAvailable = true;
+            RateLimited = true;
+            StateHasChanged();
+            return;
+        }
+
+        foreach (var file in UploadedFiles)
+        {
+            // because of this, dont allow same file names yet (or things might be broken because of this)
+            file.Result = request.Results.FirstOrDefault(x => x.FileName == file.FileName);
+        }
+
+        Warnings = request.Warnings ?? [];
+
+        var requestId = request.Id.ToString();
+
+        if (RequestId != requestId)
+        {
+            NavManager.NavigateTo("?r=" + requestId, forceLoad: false);
+            RequestId = requestId;
+        }
+
+        if (request.CompletedAt.HasValue)
+        {
+            // if a filename is called differently, it needs to be matched via hash
+            // its because the renamed file isn't submitted anyway, the first or trusted submission is used
+            foreach (var file in UploadedFiles)
+            {
+                if (file.Result is not null)
+                {
+                    continue;
+                }
+
+                var sha256 = await System.Security.Cryptography.SHA256.HashDataAsync(new MemoryStream(file.Data));
+                var sha256str = Convert.ToHexStringLower(sha256);
+
+				file.Result = request.Results.FirstOrDefault(x => x.Sha256 == sha256str);
 			}
-			catch (RevalidateProblemException ex)
-			{
-				Errors = ex.Problem?.Errors ?? [];
-			}
 		}
-
-		StateHasChanged();
-	}
-
-	private void OnUpload(UploadEventArgs args)
-	{
-		if (UploadedFiles.Count >= 10)
-		{
-			return;
-		}
-
-		try
-		{
-			using var ms = new MemoryStream(args.Data);
-			var gbx = GBX.NET.Gbx.ParseHeader(ms);
-			var file = new FileUpload(args.FileName, args.Data, args.LastModified, gbx);
-			UploadedFiles.Add(file);
-			SelectedFile = file;
-		}
-		catch
-		{
-			// ignore invalid files
-		}
-	}
-
-	private async Task ValidateAsync()
-	{
-		ValidateAvailable = false;
-		StateHasChanged();
-
-		ValidationRequest request;
-		try
-		{
-			request = await RevalidateClient.ValidateAsync(UploadedFiles.Select(x => (x.FileName, (Stream)new MemoryStream(x.Data))));
-		}
-		catch (RevalidateProblemException ex)
-		{
-			Errors = ex.Problem?.Errors ?? [];
-			Warnings = [];
-			ValidateAvailable = true;
-			StateHasChanged();
-			return;
-		}
-		catch (RevalidateRateLimitException)
-		{
-			Errors = new() { { "Validation limit reached", [] } };
-			Warnings = [];
-			ValidateAvailable = true;
-			RateLimited = true;
-			StateHasChanged();
-			return;
-		}
-
-		foreach (var file in UploadedFiles)
-		{
-			// because of this, dont allow same file names yet (or things might be broken because of this)
-			file.Result = request.Results.FirstOrDefault(x => x.FileName == file.FileName);
-		}
-
-		Warnings = request.Warnings ?? [];
-
-		var requestId = request.Id.ToString();
-
-		if (RequestId != requestId)
-		{
-			NavManager.NavigateTo("?r=" + requestId, forceLoad: false);
-			RequestId = requestId;
-		}
-
-		if (request.CompletedAt is null)
+		else
 		{
 			try
 			{

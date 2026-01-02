@@ -26,27 +26,27 @@
         background: #333;
     }
 
-    .distro-result.valid {
+    .distro-result.revalidate-valid {
         background: linear-gradient(90deg, #232 0%, #2A2 100%);
     }
 
-        .distro-result.valid:hover {
+        .distro-result.revalidate-valid:hover {
             background: linear-gradient(90deg, #242 0%, #2B2 100%);
         }
 
-        .distro-result.valid.active {
-            background: linear-gradient(90deg, #252 0%, #2C2 100%);
-        }
+    .distro-result.revalidate-valid.active {
+        background: linear-gradient(90deg, #252 0%, #2C2 100%);
+    }
 
-    .distro-result.invalid {
+    .distro-result.revalidate-invalid {
         background: linear-gradient(90deg, #322 0%, #A22 100%);
     }
 
-        .distro-result.invalid:hover {
+        .distro-result.revalidate-invalid:hover {
             background: linear-gradient(90deg, #422 0%, #B22 100%);
         }
 
-        .distro-result.invalid.active {
+        .distro-result.revalidate-invalid.active {
             background: linear-gradient(90deg, #522 0%, #C22 100%);
         }
 
@@ -95,27 +95,27 @@
         background: #333;
     }
 
-    .ghost.valid {
+    .ghost.revalidate-valid {
         background: #282;
     }
 
-        .ghost.valid:hover {
+        .ghost.revalidate-valid:hover {
             background: #292;
         }
 
-        .ghost.valid.active {
+        .ghost.revalidate-valid.active {
             background: #2A2;
         }
 
-    .ghost.invalid {
+    .ghost.revalidate-invalid {
         background: #822;
     }
 
-        .ghost.invalid:hover {
+        .ghost.revalidate-invalid:hover {
             background: #922;
         }
 
-        .ghost.invalid.active {
+        .ghost.revalidate-invalid.active {
             background: #A22;
         }
 
@@ -219,7 +219,7 @@
 .log {
     background: #222;
     padding: 10px;
-    height: 100px;
+    max-height: 300px;
     overflow: auto;
     border-radius: 5px;
     font-size: 75%;
@@ -234,8 +234,9 @@
     align-items: center;
     border: 2px solid #222;
     border-radius: 5px;
-    height: 100px;
+    height: 300px;
     overflow: auto;
+    max-height: min-content;
 }
 
 @media (max-width: 1400px) {
