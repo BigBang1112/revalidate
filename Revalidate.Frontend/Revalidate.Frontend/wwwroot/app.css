@@ -20,27 +20,27 @@ pre {
     height: 50px;
 }
 
-.revalidate-button.valid {
+.revalidate-button.revalidate-valid {
     background: #262 !important;
 }
 
-    .revalidate-button.valid:hover {
+    .revalidate-button.revalidate-valid:hover {
         background: #272 !important;
     }
 
-    .revalidate-button.valid.active {
+    .revalidate-button.revalidate-valid.active {
         background: #282 !important;
     }
 
-.revalidate-button.invalid {
+.revalidate-button.revalidate-invalid {
     background: #622 !important;
 }
 
-    .revalidate-button.invalid:hover {
+    .revalidate-button.revalidate-invalid:hover {
         background: #722 !important;
     }
 
-    .revalidate-button.invalid.active {
+    .revalidate-button.revalidate-invalid.active {
         background: #822 !important;
     }
 

@@ -727,7 +727,7 @@ else
 
 	private string GetValidityClass(bool? isValid)
 	{
-		return isValid == true ? "valid" : isValid == false ? "invalid" : "";
+		return isValid == true ? "revalidate-valid" : isValid == false ? "revalidate-invalid" : "";
 	}
 
 	private string GetValidityButtonClass(FileUpload file)
