@@ -17,6 +17,18 @@ public static class WebConfiguration
 
     public static void AddWebServices(this IServiceCollection services, IConfiguration config, IHostEnvironment environment)
     {
+        services.AddAuthorizationBuilder()
+            .AddDefaultPolicy(Policies.UserPolicy, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireRole(Roles.User);
+            })
+            .AddPolicy(Policies.AdminPolicy, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireRole(Roles.Admin);
+            });
+
         services.AddNadeoAPI(options =>
         {
             options.Credentials = new NadeoAPICredentials(
@@ -47,9 +59,6 @@ public static class WebConfiguration
         {
             client.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
         }).AddStandardResilienceHandler();
-
-        services.AddAuthentication();
-        services.AddAuthorization();
 
         services.AddOpenApi();
 

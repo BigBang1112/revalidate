@@ -9,10 +9,7 @@ public static class MiddlewareConfiguration
     {
         app.UseForwardedHeaders();
 
-        if (app.Environment.IsDevelopment())
-        {
-            app.UseHttpsRedirection();
-        }
+        app.UseHttpsRedirection();
 
         if (!app.Environment.IsDevelopment())
         {
