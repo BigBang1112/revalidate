@@ -45,7 +45,6 @@ RUN mkdir -p /app/data && \
     chown -R $APP_UID:$APP_UID /app/data && \
     chmod -R 777 /app/data # temporary 777 because there are issues with running Docker MSM
 
-RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && chown -R $APP_UID /home/app/.aspnet
-
 USER $APP_UID
+RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && chown -R $APP_UID /home/app/.aspnet
 ENTRYPOINT ["./Revalidate"]
