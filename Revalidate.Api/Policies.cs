@@ -1,6 +1,6 @@
-﻿namespace Revalidate;
+﻿namespace Revalidate.Api;
 
-public static class Policies
+internal static class Policies
 {
     public const string UserPolicy = "UserPolicy";
     public const string AdminPolicy = "AdminPolicy";

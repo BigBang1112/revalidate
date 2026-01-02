@@ -1,6 +1,6 @@
-﻿namespace Revalidate;
+﻿namespace Revalidate.Api;
 
-public static class Roles
+internal static class Roles
 {
     public const string Admin = "Admin";
     public const string User = "User";

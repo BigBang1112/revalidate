@@ -16,6 +16,18 @@ public static class WebConfiguration
             })
             .AddInteractiveWebAssemblyComponents();
 
+        services.AddAuthorizationBuilder()
+            .AddDefaultPolicy(Policies.UserPolicy, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireRole(Roles.User);
+            })
+            .AddPolicy(Policies.AdminPolicy, policy =>
+            {
+                policy.RequireAuthenticatedUser();
+                policy.RequireRole(Roles.Admin);
+            });
+
         services.AddHttpClient()
             .ConfigureHttpClientDefaults(httpBuilder =>
             {

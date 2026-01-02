@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authentication;
+using Revalidate.Api;
 using Revalidate.Frontend.Components;
 using System.Security.Claims;
 
@@ -31,6 +32,7 @@ public static class MiddlewareConfiguration
         }
 
         app.UseAuthentication();
+        app.UseAuthorization();
 
         app.UseAntiforgery();
 
@@ -41,7 +43,7 @@ public static class MiddlewareConfiguration
                 var claims = new List<Claim>
                 {
                     new(ClaimTypes.NameIdentifier, Guid.NewGuid().ToString()),
-                    new(ClaimTypes.Role, "User"),
+                    new(ClaimTypes.Role, Roles.User),
                 };
 
                 var principal = new ClaimsPrincipal(new ClaimsIdentity(claims, "GbxTools"));

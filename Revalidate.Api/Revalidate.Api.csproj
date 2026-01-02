@@ -7,6 +7,11 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <InternalsVisibleTo Include="Revalidate" />
+        <InternalsVisibleTo Include="Revalidate.Frontend" />
+    </ItemGroup>
+
+    <ItemGroup>
       <PackageReference Include="TmEssentials" Version="2.5.3" />
     </ItemGroup>
 
