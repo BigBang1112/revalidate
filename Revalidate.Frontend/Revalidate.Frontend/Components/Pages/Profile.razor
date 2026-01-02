@@ -1,4 +1,5 @@
 ﻿@page "/profile"
+@using System.Security.Claims
 @attribute [Authorize]
 @attribute [StreamRendering]
 
@@ -6,4 +7,9 @@
 
 <h1>Profile</h1>
 
-<p>TBD</p>
+<AuthorizeView>
+    <Authorized>
+        <p>Welcome, @(context.User.Identity?.Name ?? context.User.FindFirst(ClaimTypes.NameIdentifier)?.Value)!</p>
+        <p>This is your profile page.</p>
+    </Authorized>
+</AuthorizeView>
