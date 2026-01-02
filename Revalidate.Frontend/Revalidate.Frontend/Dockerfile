@@ -28,4 +28,5 @@ RUN dotnet publish "./Revalidate.Frontend.csproj" -c $BUILD_CONFIGURATION -o /ap
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
+RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && chown -R $APP_UID /home/app/.aspnet
 ENTRYPOINT ["dotnet", "Revalidate.Frontend.dll"]
