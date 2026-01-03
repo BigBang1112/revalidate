@@ -83,3 +83,32 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+
+
+.legal-document {
+    max-width: 800px;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.last-updated {
+    font-style: italic;
+    font-size: 0.9em;
+    margin-bottom: 2rem;
+    border-left: 3px solid #ddd;
+    padding-left: 1rem;
+}
+
+.legal-document h2 {
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.legal-document ul {
+    margin-bottom: 1rem;
+    padding-left: 1.5rem;
+}
+
+.legal-document li {
+    margin-bottom: 0.5rem;
+}
