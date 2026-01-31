@@ -492,7 +492,7 @@ public sealed class ValidationJobProcessor : BackgroundService
     {
         return serverHostType switch
         {
-            ServerHostType.Ubisoft => "https://nadeo-download.cdn.ubi.com/trackmania",
+            ServerHostType.Ubisoft => "http://files.v04.maniaplanet.com/server", //"https://nadeo-download.cdn.ubi.com/trackmania",
             ServerHostType.ManiaPlanet => "http://files.v04.maniaplanet.com/server",
             _ => throw new InvalidOperationException("Unsupported server host type: " + serverHostType)
         };
