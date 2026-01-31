@@ -1,32 +1,32 @@
-# Na https://aka.ms/customizecontainer se dozvíte, jak si přizpůsobit kontejner ladění a jak Visual Studio používá tento dokument Dockerfile k sestavení vašich imagí pro rychlejší ladění.
-
-# Tato fáze se používá při spuštění z VS v rychlém režimu (výchozí pro konfiguraci ladění).
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+# Debug phase
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS base
 USER $APP_UID
 WORKDIR /app
 EXPOSE 8080
 EXPOSE 8081
 
+# Publish phase
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-alpine AS build
 
-# Tato fáze slouží k sestavení projektu služby.
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-ARG BUILD_CONFIGURATION=Release
-WORKDIR /src
-COPY ["Revalidate.Frontend/Revalidate.Frontend/Revalidate.Frontend.csproj", "Revalidate.Frontend/Revalidate.Frontend/"]
-COPY ["Revalidate.Frontend/Revalidate.Frontend.Client/Revalidate.Frontend.Client.csproj", "Revalidate.Frontend/Revalidate.Frontend.Client/"]
-RUN dotnet restore "./Revalidate.Frontend/Revalidate.Frontend/Revalidate.Frontend.csproj"
-COPY . .
-WORKDIR "/src/Revalidate.Frontend/Revalidate.Frontend"
-RUN dotnet build "./Revalidate.Frontend.csproj" -c $BUILD_CONFIGURATION -o /app/build
+RUN dotnet nuget add source https://nuget.gbx.tools/v3/index.json --name nuget.gbx.tools
 
-# Tato fáze slouží k publikování projektu služby, který se má zkopírovat do konečné fáze.
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./Revalidate.Frontend.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+COPY .git .
 
-# Tato fáze se používá v produkčním prostředí nebo při spuštění z VS v běžném režimu (výchozí, když se nepoužívá konfigurace ladění).
-FROM base AS final
+COPY Revalidate.Frontend /src/Revalidate.Frontend
+COPY Revalidate.Api /src/Revalidate.Api
+
+WORKDIR /src/Revalidate.Frontend/Revalidate.Frontend
+
+ARG TARGETARCH
+
+RUN dotnet publish -a ${TARGETARCH/amd64/x64} --self-contained false -o /app
+    
+# Final phase
+FROM mcr.microsoft.com/dotnet/aspnet:10.0-alpine AS final
 WORKDIR /app
-COPY --from=publish /app/publish .
+
+COPY --from=build /app .
+
+USER $APP_UID
 RUN mkdir -p /home/app/.aspnet/DataProtection-Keys && chown -R $APP_UID /home/app/.aspnet
 ENTRYPOINT ["dotnet", "Revalidate.Frontend.dll"]

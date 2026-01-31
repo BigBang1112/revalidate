@@ -3,6 +3,8 @@
 
 @inject IConfiguration Config
 
+@using SimplestGitSourceGenerator
+
 <ReuNavMenu Brand="revalidate.gbx.tools">
     <ReuNavItem Name="Validate" Href="" IconType="IconType.Home" NavLinkMatch="NavLinkMatch.All"></ReuNavItem>
     @*<ReuNavItem Name="Results" Href="results" IconType="IconType.Results"></ReuNavItem>*@
@@ -58,6 +60,14 @@
             <a href="https://uotd.gbx.tools">uotd.gbx.tools</a>
             <a href="https://identity.gbx.tools">identity.gbx.tools</a>
             <a href="https://nuget.gbx.tools">nuget.gbx.tools</a>
+            <code>
+                @{
+                    var remoteUrl = SimplestGit.RemoteUrl.EndsWith(".git") ? SimplestGit.RemoteUrl.Substring(0, SimplestGit.RemoteUrl.Length - 4) : SimplestGit.RemoteUrl;
+                }
+                <a href="@remoteUrl/tree/@SimplestGit.CommitHash" title="@SimplestGit.CommitDate" target="_blank">
+                    @SimplestGit.Tag
+                </a>
+            </code>
         </div>
     </ExtraContent>
 </ReuFooter>
