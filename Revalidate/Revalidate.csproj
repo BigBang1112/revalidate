@@ -16,7 +16,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="GBX.NET" Version="2.3.2" />
+        <PackageReference Include="GBX.NET" Version="2.3.3" />
         <PackageReference Include="GBX.NET.Imaging.ImageSharp" Version="1.0.3" />
         <PackageReference Include="GBX.NET.LZO" Version="2.1.4" />
         <PackageReference Include="ManiaAPI.ManiaPlanetAPI" Version="2.5.1" />
