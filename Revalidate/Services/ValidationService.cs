@@ -946,6 +946,11 @@ public sealed partial class ValidationService : IValidationService
             return "2022-09-08b";
         }
 
+        if (exeDate < new DateTimeOffset(2023, 07, 3, 0, 0, 0, TimeSpan.Zero))
+        {
+            return "2023-05-04";
+        }
+
         return "Latest";
     }
 
