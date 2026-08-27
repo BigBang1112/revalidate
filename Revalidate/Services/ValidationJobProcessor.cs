@@ -24,7 +24,7 @@ public sealed class ValidationJobProcessor : BackgroundService
     private static readonly string ArchivesDir = Path.GetFullPath(Path.Combine("data", "archives"));
     private static readonly string VersionsDir = Path.GetFullPath(Path.Combine("data", "versions"));
 
-    public static readonly ImmutableList<string> Distros = ["resolute", "noble", "trixie-slim", "alpine"];
+    public static readonly ImmutableList<string> Distros = ["resolute", "noble", "trixie-slim", "bookworm-slim", "alpine"];
 
     private static readonly SemaphoreSlim dbSemaphore = new(1, 1);
 
