@@ -28,11 +28,10 @@ public static class EndpointConfiguration
             Tag = GitInfo.Tag
         },*/
         Distros = [ // port to database later
-            new DistroInformation("noble", "Ubuntu 24.04 LTS", "Noble Numbatt"),
-            new DistroInformation("plucky", "Ubuntu 25.04", "Plucky Puffin"),
-            new DistroInformation("bookworm-slim", "Debian 12", "Bookworm"),
+            new DistroInformation("resolute", "Ubuntu 26.04 LTS", "Plucky Puffin"),
+            new DistroInformation("noble", "Ubuntu 24.04 LTS", "Resolute Raccoon"),
+            new DistroInformation("trixie-slim", "Debian 13", "Trixie"),
             new DistroInformation("alpine", "Alpine 3.22", "+ glibc"),
-            new DistroInformation("fedora", "Fedora 42", null),
         ]
     };
 
