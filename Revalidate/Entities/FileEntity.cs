@@ -6,6 +6,9 @@ namespace Revalidate.Entities;
 
 public sealed class FileEntity
 {
+    // MySQL MEDIUMBLOB stores at most 2^24 - 1 bytes, including downloaded files.
+    public const int MaxDataLength = 16 * 1024 * 1024 - 1;
+
     public Guid Id { get; set; } = Guid.CreateVersion7();
 
     [Column(TypeName = "mediumblob")]
@@ -18,6 +21,11 @@ public sealed class FileEntity
 
     public static async Task<FileEntity> FromStreamAsync(Stream stream, CancellationToken cancellationToken)
     {
+        if (stream.Length > MaxDataLength)
+        {
+            throw new InvalidDataException($"File size of {stream.Length:N0} bytes exceeds the maximum stored file size of {MaxDataLength:N0} bytes.");
+        }
+
         stream.Position = 0;
 
         await using var ms = new MemoryStream();
@@ -29,6 +37,11 @@ public sealed class FileEntity
 
     public static async Task<FileEntity> FromStreamAsync(MemoryStream stream, CancellationToken cancellationToken)
     {
+        if (stream.Length > MaxDataLength)
+        {
+            throw new InvalidDataException($"File size of {stream.Length:N0} bytes exceeds the maximum stored file size of {MaxDataLength:N0} bytes.");
+        }
+
         stream.Position = 0;
 
         return new FileEntity

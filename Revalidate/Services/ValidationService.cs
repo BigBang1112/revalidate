@@ -92,7 +92,7 @@ public sealed partial class ValidationService : IValidationService
                 continue;
             }
 
-            if (file.Length > 8 * 1024 * 1024)
+            if (file.Length > FileLimits.MaxUploadSize)
             {
                 // it is first and only error of a file, so it doesn't need appending
                 errorBag.TryAdd(file.FileName, ["File exceeds the maximum allowed size of 8MB."]);
